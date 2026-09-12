@@ -77,7 +77,7 @@ def get_largest_interval_upto(interval: str, intervals: list[str]) -> str:
         raise ValueError(f"No largest interval found upto '{interval}'")
 
 def get_bar_seconds(df: pd.DataFrame | pd.Series) -> np.ndarray[tuple[int], np.dtype[np.float64]]:
-    time_diffs  = df.index.to_series().diff(-1).dt.total_seconds()
+    time_diffs  = -df.index.to_series().diff(-1).dt.total_seconds()
     bar_seconds = time_diffs.ffill().to_numpy()
     return cast(np.ndarray[tuple[int], np.dtype[np.float64]], bar_seconds)
 
