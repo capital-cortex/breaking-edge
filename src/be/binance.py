@@ -77,7 +77,6 @@ class DataBinanceVision:
         assert self.path, "Environment variable 'be_dbv' does not exist."
         self.db_path          = os.path.join(self.path, "data_binance_vision.duckdb")
         self.klinesrdy_path_f = os.path.join(self.path, "spot", "live", "klines", self.KLINESRDY_FILENAME_F)
-        
     
     def get_url(self, symbol: str, date: str) -> str:
         specifier = self.interval if self.data_type == "klines" else self.data_type
@@ -319,18 +318,16 @@ class DataBinanceVision:
         if file_type == "db" and self.period != "live":
             df = self._read_db(symbol)
             if not (np.diff(utils.get_bar_seconds(df)) == 0.0).all():
-                print(f"Timestamps for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}' are not evenly spaced.")
+                print(f"Index for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}' is not evenly spaced.")
             if df.empty and errors == "raise":
                 raise AssertionError(f"No data in db for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}'.")
             return df
         try:
             df = self._read_csv(symbol)
-            if not (np.diff(utils.get_bar_seconds(df)) == 0.0).all():
-                print(f"Timestamps for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}' are not evenly spaced.")
             orig_len = len(df)
             df = df.resample(utils.interval_to_freq(self.interval), label="left").asfreq()
             if (filled_bars := len(df) - orig_len) != 0:
-                print(f"Filled {filled_bars}/{len(df)} bar(s) for symbol '{symbol} from '{self.timestamp_bgn}' to '{self.timestamp_end}'.")
+                print(f"Filled {filled_bars}/{len(df)} bar(s) for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}'.")
             df = utils.fillna(df)
             df["time_close"] = df.index + utils.interval_to_dateoffset(self.interval)
         except:
@@ -494,7 +491,7 @@ class BinanceApiHelper():
             api_key    : str | None = None,
             api_secret : str | None = None,
     ) -> None:
-        if api_key is None or api_secret is None:
+        if not api_key or not api_secret:
             print("Running with public binance api client.")
         else:
             print(f"Running with binance api key.")
