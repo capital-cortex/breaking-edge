@@ -388,17 +388,17 @@ class DataBinanceVision:
         p_close = df["price_close"     ].to_numpy(np.float64)
         v_abs   = df["volume_abs"      ].to_numpy(np.float64)
         vq_abs  = df["volume_quote_abs"].to_numpy(np.float64)
-        trades  = df["trades_abs"      ].to_numpy(np.float64)
+        t_abs   = df["trades_abs"      ].to_numpy(np.float64)
         v_buy   = df["volume_buy"      ].to_numpy(np.float64)
         vq_buy  = df["volume_quote_buy"].to_numpy(np.float64)
         
-        t_abs_sum  = np.add.reduceat(trades, idx)
-        v_abs_sum  = np.add.reduceat(v_abs,  idx)
-        v_buy_sum  = np.add.reduceat(v_buy,  idx)
+        t_abs_sum  = np.add.reduceat(t_abs , idx)
+        v_abs_sum  = np.add.reduceat(v_abs , idx)
+        v_buy_sum  = np.add.reduceat(v_buy , idx)
         vq_abs_sum = np.add.reduceat(vq_abs, idx)
         vq_buy_sum = np.add.reduceat(vq_buy, idx)
         highs  = np.maximum.reduceat(p_high, idx)
-        lows   = np.minimum.reduceat(p_low,  idx)
+        lows   = np.minimum.reduceat(p_low , idx)
         opens  = p_open [bar_starts]
         closes = p_close[bar_ends  ]
         time_open  = df.index[bar_starts]
@@ -1016,7 +1016,7 @@ class Kliner():
         "volume_abs"       : "sum"  ,
         "time_close"       : "last" ,
         "volume_quote_abs" : "sum"  ,
-        "trades"           : "sum"  ,
+        "trades_abs"       : "sum"  ,
         "volume_buy"       : "sum"  ,
         "volume_quote_buy" : "sum"  ,
         "ignore"           : "sum"  ,
