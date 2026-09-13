@@ -24,8 +24,6 @@ class DataBinanceVision:
     FUTURES_TIMESTAMP_MIN   = "2019-09-08"
     TRADES_COLUMNS          = ["id", "price", "volume", "volume_quote", "time", "is_sell", "is_best_match"]
     TRADES_CLEAN_COLUMNS    = [      "price", "volume", "volume_quote"]
-    KLINES_COLUMNS          = ["time", "price_open", "price_high", "price_low", "price_close", "volume_abs",                              "time_close", "volume_quote_abs",                                          "trades_abs", "volume_buy", "volume_quote_buy", "ignore"]
-    KLINES_CLEAN_COLUMNS    = [        "price_open", "price_high", "price_low", "price_close", "volume_abs", "volume_buy", "volume_sell", "time_close", "volume_quote_abs", "volume_quote_buy", "volume_quote_sell", "trades_abs"]
     KLINES_AGGRULES = {
         "time"             : "first",
         "price_open"       : "first",
@@ -54,6 +52,8 @@ class DataBinanceVision:
         "volume_quote_sell" : "sum"  ,
         "trades_abs"        : "sum"  ,
     }
+    KLINES_COLUMNS          = [*KLINES_AGGRULES.keys()]
+    KLINES_CLEAN_COLUMNS    = [*KLINES_CLEAN_AGGRULES.keys()]
     KLINES_LIVE_FILENAME_F = "{symbol}-{interval}-live.csv"
     KLINESRDY_FILENAME_F   = ".klinesrdy{interval}"
     DATETIME_MIN           = "1970-01"
