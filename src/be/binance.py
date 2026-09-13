@@ -24,19 +24,19 @@ class DataBinanceVision:
     FUTURES_TIMESTAMP_MIN   = "2019-09-08"
     TRADES_COLUMNS          = ["id", "price", "volume", "volume_quote", "time", "is_sell", "is_best_match"]
     TRADES_CLEAN_COLUMNS    = [      "price", "volume", "volume_quote"]
-    KLINES_AGGRULES = {
-        "time"             : "first",
-        "price_open"       : "first",
-        "price_high"       : "max"  ,
-        "price_low"        : "min"  ,
-        "price_close"      : "last" ,
-        "volume_abs"       : "sum"  ,
-        "time_close"       : "last" ,
-        "volume_quote_abs" : "sum"  ,
-        "trades_abs"       : "sum"  ,
-        "volume_buy"       : "sum"  ,
-        "volume_quote_buy" : "sum"  ,
-        "ignore"           : "sum"  ,
+    KLINES_AGGRULES         = {
+        "time"              : "first",
+        "price_open"        : "first",
+        "price_high"        : "max"  ,
+        "price_low"         : "min"  ,
+        "price_close"       : "last" ,
+        "volume_abs"        : "sum"  ,
+        "time_close"        : "last" ,
+        "volume_quote_abs"  : "sum"  ,
+        "trades_abs"        : "sum"  ,
+        "volume_buy"        : "sum"  ,
+        "volume_quote_buy"  : "sum"  ,
+        "ignore"            : "sum"  ,
     }
     KLINES_CLEAN_AGGRULES   = {
         "price_open"        : "first",
@@ -54,15 +54,19 @@ class DataBinanceVision:
     }
     KLINES_COLUMNS          = [*KLINES_AGGRULES.keys()]
     KLINES_CLEAN_COLUMNS    = [*KLINES_CLEAN_AGGRULES.keys()]
-    KLINES_LIVE_FILENAME_F = "{symbol}-{interval}-live.csv"
-    KLINESRDY_FILENAME_F   = ".klinesrdy{interval}"
-    DATETIME_MIN           = "1970-01"
-    DATETIME_MAX           = "2170-01"
+    KLINES_LIVE_FILENAME_F  = "{symbol}-{interval}-live.csv"
+    KLINESRDY_FILENAME_F    = ".klinesrdy{interval}"
+    DATETIME_MIN            = "1970-01"
+    DATETIME_MAX            = "2170-01"
     
     # TODO: input validation
     # TODO: disabled symbols _ -> ~
     # TODO: rename file_type -> source
-    # TODO: rename klines_resample() -> resample_data()
+    # TODO: add resample_data(df, by) function
+    # TODO: rename klines_resample() -> _resample_data_by_time()
+    # TODO: rename klines_resample_volume_bars() -> _resample_data_by_volume()
+    # TODO: rename get_data_klines_agg() -> get_data_agg(symbol, by)
+    # TODO: remove intern functions with _ (like _migrate_data_klines())
     # TODO: add db_only mode (delete zips)? Track downloaded data? Make get_symbols() work?
     def __init__(
             self,
