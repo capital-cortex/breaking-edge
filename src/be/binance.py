@@ -26,6 +26,20 @@ class DataBinanceVision:
     TRADES_CLEAN_COLUMNS    = [      "price", "volume", "volume_quote"]
     KLINES_COLUMNS          = ["time", "price_open", "price_high", "price_low", "price_close", "volume_abs",                              "time_close", "volume_quote_abs",                                          "trades_abs", "volume_buy", "volume_quote_buy", "ignore"]
     KLINES_CLEAN_COLUMNS    = [        "price_open", "price_high", "price_low", "price_close", "volume_abs", "volume_buy", "volume_sell", "time_close", "volume_quote_abs", "volume_quote_buy", "volume_quote_sell", "trades_abs"]
+    KLINES_AGGRULES = {
+        "time"             : "first",
+        "price_open"       : "first",
+        "price_high"       : "max"  ,
+        "price_low"        : "min"  ,
+        "price_close"      : "last" ,
+        "volume_abs"       : "sum"  ,
+        "time_close"       : "last" ,
+        "volume_quote_abs" : "sum"  ,
+        "trades_abs"       : "sum"  ,
+        "volume_buy"       : "sum"  ,
+        "volume_quote_buy" : "sum"  ,
+        "ignore"           : "sum"  ,
+    }
     KLINES_CLEAN_AGGRULES   = {
         "price_open"        : "first",
         "price_high"        : "max"  ,
@@ -1004,21 +1018,6 @@ class BinanceApiHelper():
 #%% Kliner
 class Kliner():
     
-    KLINES_AGGRULES = {
-        "time"             : "first",
-        "price_open"       : "first",
-        "price_high"       : "max"  ,
-        "price_low"        : "min"  ,
-        "price_close"      : "last" ,
-        "volume_abs"       : "sum"  ,
-        "time_close"       : "last" ,
-        "volume_quote_abs" : "sum"  ,
-        "trades_abs"       : "sum"  ,
-        "volume_buy"       : "sum"  ,
-        "volume_quote_buy" : "sum"  ,
-        "ignore"           : "sum"  ,
-    }
-    
     #platform_time   : PlatformTime
     timestamper      : Timestamper
     dbv              : DataBinanceVision
@@ -1124,7 +1123,7 @@ class Kliner():
                         failed_symbols.append(symbol)
                         continue
                     klines.index = pd.to_datetime(klines.time * self.bah.time_factor, unit="s")
-                    klines = klines.resample(utils.interval_to_freq(interval), label="left").agg(self.KLINES_AGGRULES) # type: ignore
+                    klines = klines.resample(utils.interval_to_freq(interval), label="left").agg(self.dbv.KLINES_AGGRULES) # type: ignore
                     if klines.iloc[-1].time * self.bah.time_factor == bar_time:
                         klines = klines[:-1] # drop open bar from lower interval agg (normally there is none)
                     if klines.iloc[-1].time * self.bah.time_factor != bar_time - pd.Timedelta(interval).total_seconds():
