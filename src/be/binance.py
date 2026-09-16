@@ -345,7 +345,7 @@ class DataBinanceVision:
             orig_len = len(df)
             df = df.resample(utils.interval_to_freq(self.interval), label="left").asfreq()
             if (filled_bars := len(df) - orig_len) != 0:
-                print(f"Filled {filled_bars}/{len(df)} bar(s) for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}'.")
+                print(f"Filled {filled_bars}/{len(df)} bar{"" if filled_bars == 1 else "s"} for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}'.")
             df = utils.fillna(df)
             df["time_close"] = df.index + utils.interval_to_dateoffset(self.interval)
         except:
