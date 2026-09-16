@@ -11,10 +11,14 @@ from dotenv import load_dotenv
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from typing import Callable, Literal, Any
 
+import sys
+if "" in sys.path:
+    sys.path.remove("")
+    sys.path.append("")
 from binance.client import Client # type: ignore
 
-from . import utils
-from .time import PlatformTime, Timestamper
+from be import utils
+from be.time import PlatformTime, Timestamper
 
 #%% Data Binance Vision
 load_dotenv()
