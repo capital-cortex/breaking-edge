@@ -674,6 +674,7 @@ class DataAlpacaMarkets:
             else:
                 blocks.append([date])
 
+        wrote_any_file = False
         for block in tqdm(blocks, desc=f"Downloading .../{symbol}/{self.interval}", unit="block"):
             time.sleep(delay)
             # fetch the full calendar range for this block -- clamped only by the hard
@@ -704,6 +705,17 @@ class DataAlpacaMarkets:
                 tmp_path = final_path + ".tmp"
                 month_df.to_csv(tmp_path, header=False, index=False)
                 os.replace(tmp_path, final_path)
+                wrote_any_file = True
+        # Alpaca returns the exact same empty response ('bars': null) for a symbol that
+        # doesn't exist at all and for a symbol that legitimately has no data in the
+        # requested window -- there is no way to tell those apart from the API alone. So:
+        # if there WAS something missing to fetch (dates non-empty) but not a single file
+        # got written, treat it as a failure (nonexistent symbol / no new data at all)
+        # instead of silently reporting success. If dates was empty to begin with, the
+        # cache was already complete -- that is a real success, not a failure, and stays True.
+        if dates and not wrote_any_file:
+            print(f"No data found for '{symbol}' in the requested range (nonexistent symbol, or no new data available).")
+            return False
         if migrate and dates:
             self.migrate_data(symbol)
         return True
