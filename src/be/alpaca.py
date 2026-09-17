@@ -303,7 +303,7 @@ class DataAlpaca:
             timestamp_bgn      : str                     = "1970-01",
             timestamp_end      : str                     = "2170-01",
             feed               : Feed                    = "sip"    ,
-            adjustment         : str                     = "raw"    ,
+            adjustment         : str                     = "split"    ,
             regular_hours_only : bool                    = True     ,
             api_key            : str | None              = None     ,
             api_secret         : str | None              = None     ,
