@@ -60,8 +60,8 @@ class DataBinanceVision:
     KLINES_CLEAN_COLUMNS    = [*KLINES_CLEAN_AGGRULES.keys()]
     KLINES_LIVE_FILENAME_F  = "{symbol}-{interval}-live.csv"
     KLINESRDY_FILENAME_F    = ".klinesrdy{interval}"
-    DATETIME_MIN            = "1970-01"
-    DATETIME_MAX            = "2170-01"
+    TIMESTAMP_MIN           = "1970-01"
+    TIMESTAMP_MAX           = "2170-01"
     
     market_type      : Literal["futures"  , "spot"             ]
     futures_type     : Literal["um"       , "cm"     ,""       ]
@@ -97,7 +97,7 @@ class DataBinanceVision:
             timestamp_bgn : str                                       = "1970-01",
             timestamp_end : str                                       = "2170-01",
     ) -> None:
-        if period      == "live"      : timestamp_bgn = self.DATETIME_MIN; timestamp_end = self.DATETIME_MAX
+        if period      == "live"      : timestamp_bgn = self.TIMESTAMP_MIN; timestamp_end = self.TIMESTAMP_MAX
         if data_type   == "bookDepth" : market_type   = "futures"; period = "daily"
         if data_type   != "klines"    : interval      = ""
         if market_type == "spot"      : futures_type  = ""
@@ -160,10 +160,17 @@ class DataBinanceVision:
                         zout.writestr(item, zin.read(item.filename))
         os.remove(old_path)
     
-    def download_data(self, symbol: str, migrate: bool = True, delay: float = 0.5) -> bool:
-        # TODO: support list of symbols (move independant code to top out of symbols for-loop, migrate after for-loop)
-        symbol_dir = self.get_dir(symbol)
-        os.makedirs(symbol_dir, exist_ok=True)
+    def download_data(
+            self                                  ,
+            symbols: list[str] | str | None = None,
+            migrate: bool                   = True,
+            delay  : float                  = 0.5 ,
+    ) -> list[bool]:
+        symbols = symbols if symbols is not None else self.get_symbols()
+        symbols = symbols if isinstance(symbols, list) else [symbols]
+        timestamps_bgn: list[str ] = []
+        timestamps_end: list[str ] = []
+        downloaded    : list[bool] = []
         match self.period:
             case "daily":
                 freq, format = "D" , "%Y-%m-%d"
@@ -171,77 +178,82 @@ class DataBinanceVision:
                 freq, format = "MS", "%Y-%m"
             case _:
                 raise ValueError(f"Invalid 'period': Must be one of 'daily', 'monthly'. Got: '{self.period}'.")
-        # get symbol timestamp_min
-        if self.market_type == "spot":
-            time.sleep(delay)
-            params = {
-                "symbol"    : symbol,
-                "interval"  : "1M"  ,
-                "startTime" : "0"   ,
-                "limit"     : "1"   ,
-            }
-            try:
-                response = requests.get("https://api.binance.com/api/v3/klines", params=params)
-            except Exception as e:
-                print(f"Failed to download all data for '{symbol}':")
-                print(e)
-                return False
-            if response.status_code != 200:
-                print(f"Failed to download all data for '{symbol}':")
-                print(f"Response ({response.status_code}): {response.json()}")
-                return False
-            first_time : int = response.json()[0][0]
-            timestamp_min = pd.to_datetime(first_time, unit="ms").strftime(format)
-        # self.market_type == "futures"
-        elif self.data_type == "bookDepth":
-            timestamp_min = pd.to_datetime(self.BOOKDEPTH_TIMESTAMP_MIN)
-        else:
-            timestamp_min = pd.to_datetime(self.FUTURES_TIMESTAMP_MIN)
-        timestamp_max = pd.Timestamp.now("utc").tz_localize(None).strftime(format)
-        timestamp_bgn = max(pd.to_datetime(self.timestamp_bgn), pd.to_datetime(timestamp_min))
-        timestamp_end = min(pd.to_datetime(self.timestamp_end), pd.to_datetime(timestamp_max))
-        pd_date_range = pd.date_range(timestamp_bgn, timestamp_end, freq=freq, inclusive="both")
-        dates = [date for pd_date in pd_date_range if not os.path.exists(self.get_path(symbol, date := pd_date.strftime(format)))]
-        newest_filename      = max(filenames) if (filenames := os.listdir(symbol_dir)) else self.DATETIME_MAX
-        newest_file_date     = "-".join(part for part in newest_filename.split(".")[0].split("-") if part.isnumeric())
-        newest_file_datetime = pd.to_datetime(newest_file_date)
-        desc_url = "/".join(self.get_url(symbol, "").split("/data/")[-1].split("/")[:-1])
-        first_file_found = False
-        for date in tqdm(dates[:-1], desc=f"Downloading .../{desc_url}", unit="file"):
-            time.sleep(delay)
-            url  = self.get_url (symbol, date)
-            path = self.get_path(symbol, date)
-            try:
-                response = requests.get(url, stream=True)
-            except Exception as e:
-                print(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
-                print(e)
-                return False
-            if response.status_code == 404:
-                if not first_file_found and pd.to_datetime(date) < newest_file_datetime:
+        for symbol in symbols:
+            timestamps_bgn.append(self.TIMESTAMP_MIN)
+            timestamps_end.append(self.TIMESTAMP_MIN)
+            downloaded.append(False)
+            symbol_dir = self.get_dir(symbol)
+            os.makedirs(symbol_dir, exist_ok=True)
+            # get symbol timestamp_min
+            if self.market_type == "spot":
+                time.sleep(delay)
+                params = {
+                    "symbol"    : symbol,
+                    "interval"  : "1M"  ,
+                    "startTime" : "0"   ,
+                    "limit"     : "1"   ,
+                }
+                try:
+                    response = requests.get("https://api.binance.com/api/v3/klines", params=params)
+                except Exception as e:
+                    print(f"Failed to download all data for '{symbol}':")
+                    print(e)
                     continue
-                print(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
-                print(f"Response (404): File '{os.path.basename(path)}' does not exist.")
-                return False
-            if response.status_code != 200:
-                print(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
-                print(f"Response ({response.status_code}): {response.json()}")
-                return False
-            first_file_found = True
-            with open(path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=1024):
-                    if chunk:
-                        f.write(chunk)
-            self._clean_zip(path)
-        if self.data_type == "klines" and migrate and dates:
-            timestamp_bgn_tmp  = self.timestamp_bgn
-            timestamp_end_tmp  = self.timestamp_end
-            self.timestamp_bgn = dates[ 0]
-            self.timestamp_end = dates[-1]
-            self.migrate_data(symbol)
-            self.timestamp_bgn = timestamp_bgn_tmp
-            self.timestamp_end = timestamp_end_tmp
-        return True
+                if response.status_code != 200:
+                    print(f"Failed to download all data for '{symbol}':")
+                    print(f"Response ({response.status_code}): {response.json()}")
+                    continue
+                first_time : int = response.json()[0][0]
+                timestamp_min = pd.to_datetime(first_time, unit="ms").strftime(format)
+            # self.market_type == "futures"
+            elif self.data_type == "bookDepth":
+                timestamp_min = pd.to_datetime(self.BOOKDEPTH_TIMESTAMP_MIN)
+            else:
+                timestamp_min = pd.to_datetime(self.FUTURES_TIMESTAMP_MIN)
+            timestamp_max = pd.Timestamp.now("utc").tz_localize(None).strftime(format)
+            timestamp_bgn = max(pd.to_datetime(self.timestamp_bgn), pd.to_datetime(timestamp_min))
+            timestamp_end = min(pd.to_datetime(self.timestamp_end), pd.to_datetime(timestamp_max))
+            pd_date_range = pd.date_range(timestamp_bgn, timestamp_end, freq=freq, inclusive="both")
+            dates = [date for pd_date in pd_date_range if not os.path.exists(self.get_path(symbol, date := pd_date.strftime(format)))]
+            if not dates:
+                continue
+            newest_filename      = max(filenames) if (filenames := os.listdir(symbol_dir)) else self.TIMESTAMP_MAX
+            newest_file_date     = "-".join(part for part in newest_filename.split(".")[0].split("-") if part.isnumeric())
+            newest_file_datetime = pd.to_datetime(newest_file_date)
+            desc_url = "/".join(self.get_url(symbol, "").split("/data/")[-1].split("/")[:-1])
+            first_file_found = False
+            for date in tqdm(dates[:-1], desc=f"Downloading .../{desc_url}", unit="file"):
+                time.sleep(delay)
+                url  = self.get_url (symbol, date)
+                path = self.get_path(symbol, date)
+                try:
+                    response = requests.get(url, stream=True)
+                except Exception as e:
+                    print(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
+                    print(e)
+                    break
+                if response.status_code == 404:
+                    if not first_file_found and pd.to_datetime(date) < newest_file_datetime:
+                        continue
+                    print(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
+                    print(f"Response (404): File '{os.path.basename(path)}' does not exist.")
+                    break
+                if response.status_code != 200:
+                    print(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
+                    print(f"Response ({response.status_code}): {response.json()}")
+                    break
+                first_file_found = True
+                with open(path, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=1024):
+                        if chunk:
+                            f.write(chunk)
+                self._clean_zip(path)
+                timestamps_bgn[-1] = dates[ 0]
+                timestamps_end[-1] = dates[-1]
+                downloaded[-1]     = True
+        if self.data_type == "klines" and migrate:
+            self.migrate_data(symbols, timestamps_bgn, timestamps_end)
+        return downloaded
     
     def get_filenames(self, data_dir: str) -> list[str]:
         filenames = os.listdir(data_dir)
@@ -461,17 +473,31 @@ class DataBinanceVision:
             return resampled_df[:-1]
         return resampled_df
     
-    def migrate_data(self, symbols: list[str] | str | None = None) -> None:
-        symbols = symbols or self.get_symbols()
-        if isinstance(symbols, str):
-            symbols = [symbols]
+    def migrate_data(
+            self                                         ,
+            symbols       : list[str] | str | None = None,
+            timestamps_bgn: list[str] | str | None = None,
+            timestamps_end: list[str] | str | None = None,
+    ) -> None:
+        symbols = symbols if symbols is not None else self.get_symbols()
+        symbols = symbols if isinstance(symbols, list) else [symbols]
+        timestamps_bgn = timestamps_bgn if timestamps_bgn is not None else [self.timestamp_bgn] * len(symbols)
+        timestamps_end = timestamps_end if timestamps_end is not None else [self.timestamp_end] * len(symbols)
+        timestamps_bgn = timestamps_bgn if isinstance(timestamps_bgn, list) else [timestamps_bgn]
+        timestamps_end = timestamps_end if isinstance(timestamps_end, list) else [timestamps_end]
+        assert len(symbols) == len(timestamps_bgn) == len(timestamps_end), "Invalid args: Lists must have same length."
         match self.data_type:
             case "bookDepth" : raise NotImplementedError()
-            case "klines"    : self._migrate_data_klines(symbols)
+            case "klines"    : self._migrate_data_klines(symbols, timestamps_bgn, timestamps_end)
             case "trades"    : raise NotImplementedError()
             case _           : raise ValueError(f"Invalid 'data_type': Must be one of 'trades', 'klines', 'bookDepth'. Got: '{self.data_type}'.")
     
-    def _migrate_data_klines(self, symbols: list[str]) -> None:
+    def _migrate_data_klines(
+            self                     ,
+            symbols       : list[str],
+            timestamps_bgn: list[str],
+            timestamps_end: list[str],
+    ) -> None:
         con = self.connect_db("w")
         table_name = self.get_table_name()
         TABLE_SCHEMA = """
@@ -492,10 +518,26 @@ class DataBinanceVision:
             PRIMARY KEY (symbol, time)
         """
         con.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({TABLE_SCHEMA});")
-        iter_symbols = symbols if len(symbols) == 1 else tqdm(symbols, desc="Migrating symbols to duckdb")
+        timestamp_bgn_tmp = self.timestamp_bgn
+        timestamp_end_tmp = self.timestamp_end
         any_data = False
-        for symbol in iter_symbols:
-            df = self.get_data_klines(symbol, file_type="csv", errors="empty")
+        progress = None if len(symbols) == 1 else tqdm(symbols, desc="Migrating symbols to duckdb")
+        for i, symbol in (enumerate(progress) if progress else enumerate(symbols)):
+            if progress is not None:
+                progress.set_description(f"Migrating '{symbol}' to duckdb")
+            timestamp_bgn, timestamp_end = timestamps_bgn[i], timestamps_end[i]
+            if timestamp_bgn == timestamp_end:
+                continue
+            try:
+                self.timestamp_bgn = timestamp_bgn
+                self.timestamp_end = timestamp_end
+                df = self.get_data_klines(symbol, file_type="csv", errors="empty")
+                self.timestamp_bgn = timestamp_bgn_tmp
+                self.timestamp_end = timestamp_end_tmp
+            except:
+                self.timestamp_bgn = timestamp_bgn_tmp
+                self.timestamp_end = timestamp_end_tmp
+                raise
             if df.empty:
                 continue
             any_data = True
