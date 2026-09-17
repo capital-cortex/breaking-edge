@@ -1,4 +1,8 @@
 #%%
+# pyright: strict
+# pandas ships no py.typed stub package here (pandas-stubs not installed), so its own
+# inline types are incomplete under strict mode -- not something this file can fix.
+# pyright: reportMissingTypeStubs=false
 import os
 import time
 import re
@@ -8,7 +12,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from dotenv import load_dotenv
-from typing import Literal, Any
+from typing import Literal, Any, TypedDict, Required, cast
 from urllib.parse import quote
 
 #%% Data Alpaca Vision
@@ -16,6 +20,68 @@ load_dotenv()
 
 class AlpacaDataError(RuntimeError):
     pass
+
+
+class AlpacaBar(TypedDict):
+    """One raw bar as returned by Alpaca's /v2/stocks/{symbol}/bars endpoint."""
+    t  : str   # RFC3339 timestamp
+    o  : float
+    h  : float
+    l  : float
+    c  : float
+    v  : float
+    n  : float
+    vw : float
+
+
+class AlpacaBarsPage(TypedDict):
+    bars            : list[AlpacaBar] | None
+    next_page_token : str | None
+    symbol          : str
+
+
+class AlpacaCalendarDay(TypedDict):
+    date            : str
+    open            : str
+    close           : str
+    session_open    : str
+    session_close   : str
+    settlement_date : str
+
+
+class AlpacaClock(TypedDict):
+    timestamp  : str
+    is_open    : bool
+    next_open  : str
+    next_close : str
+
+
+class AlpacaAccount(TypedDict):
+    cash            : str
+    buying_power    : str
+    portfolio_value : str
+
+
+class AlpacaAsset(TypedDict, total=False):
+    symbol       : str
+    fractionable : bool
+    close_price  : str
+
+
+class AlpacaPosition(TypedDict, total=False):
+    symbol        : str
+    current_price : str
+
+
+class AlpacaOrder(TypedDict, total=False):
+    id                : Required[str]
+    side              : Required[str]
+    submitted_at      : Required[str]
+    type              : str
+    status            : str
+    filled_at         : str | None
+    filled_qty        : str
+    filled_avg_price  : str | None
 
 
 class DataAlpaca:
@@ -376,27 +442,29 @@ class DataAlpaca:
 
             if response.status_code == 200:
                 try:
-                    data = response.json()
+                    data: Any = response.json()
                 except ValueError as error:
                     raise AlpacaDataError("Alpaca returned invalid JSON.") from error
                 if not isinstance(data, dict):
                     raise AlpacaDataError("Alpaca returned an unexpected response shape.")
-                return data
+                return cast("dict[str, Any]", data)
 
             if response.status_code in retry_statuses and attempt < self.max_retries:
                 time.sleep(self._retry_delay(response, attempt))
                 continue
 
+            message: Any = response.text
             try:
-                error_data = response.json()
-                message = error_data.get("message", response.text)
+                error_data: Any = response.json()
+                if isinstance(error_data, dict):
+                    message = cast("dict[str, Any]", error_data).get("message", response.text)
             except ValueError:
-                message = response.text
+                pass
             raise AlpacaDataError(f"Alpaca request failed ({response.status_code}): {str(message)[:500]}")
 
         raise AlpacaDataError("Alpaca request failed without a response.")
 
-    def _request_bars(self, symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> list[dict[str, Any]]:
+    def _request_bars(self, symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> list[AlpacaBar]:
         url = self.URL_F.format(symbol=quote(symbol, safe=""))
         params: dict[str, Any] = {
             "timeframe"  : self.timeframe            ,
@@ -407,14 +475,14 @@ class DataAlpaca:
             "limit"      : self.PAGE_LIMIT          ,
             "sort"       : "asc"                    ,
         }
-        bars: list[dict[str, Any]] = []
+        bars: list[AlpacaBar] = []
         seen_tokens: set[str] = set()
         while True:
             data = self._request_json(url, params)
-            page_bars = data.get("bars") or [] # Alpaca returns 'bars': null (not []) when nothing is in range
-            if not isinstance(page_bars, list) or not all(isinstance(bar, dict) for bar in page_bars):
+            page_bars: Any = data.get("bars") or [] # Alpaca returns 'bars': null (not []) when nothing is in range
+            if not isinstance(page_bars, list) or not all(isinstance(bar, dict) for bar in cast("list[Any]", page_bars)):
                 raise AlpacaDataError("Alpaca returned an unexpected 'bars' payload.")
-            bars.extend(page_bars)
+            bars.extend(cast("list[AlpacaBar]", page_bars))
 
             page_token = data.get("next_page_token")
             if page_token is None:
@@ -450,20 +518,23 @@ class DataAlpaca:
         else:
             raise AlpacaDataError("Alpaca calendar request failed without a response.")
 
-        rows = response.json()
-        if not isinstance(rows, list):
+        rows_raw: Any = response.json()
+        if not isinstance(rows_raw, list):
             raise AlpacaDataError("Alpaca returned an unexpected 'calendar' payload.")
-        calendar = pd.DataFrame(rows, columns=["date", "close"])
-        calendar["date"] = pd.to_datetime(calendar["date"]).dt.date
-        calendar["close_minute"] = calendar["close"].str.slice(0, 2).astype(int) * 60 + calendar["close"].str.slice(3, 5).astype(int)
+        rows = cast("list[AlpacaCalendarDay]", rows_raw)
+        calendar: pd.DataFrame = pd.DataFrame(rows, columns=["date", "close"])
+        date_col = calendar["date"]
+        close_col = calendar["close"]
+        calendar["date"] = pd.to_datetime(date_col).dt.date
+        calendar["close_minute"] = close_col.str.slice(0, 2).astype(int) * 60 + close_col.str.slice(3, 5).astype(int)
         calendar = calendar.set_index("date")[["close_minute"]]
         self._calendar_cache[cache_key] = calendar
         return calendar
 
-    def _bars_to_df(self, bars: list[dict[str, Any]]) -> pd.DataFrame:
+    def _bars_to_df(self, bars: list[AlpacaBar]) -> pd.DataFrame:
         if not bars:
             return pd.DataFrame(columns=self.KLINES_COLUMNS)
-        df = pd.DataFrame(bars)
+        df: pd.DataFrame = pd.DataFrame(cast("list[dict[str, Any]]", bars))
         missing = [column for column in self.API_COLUMNS_REQUIRED if column not in df.columns]
         if missing:
             raise AlpacaDataError(f"Alpaca bars are missing required columns: {missing}")
@@ -472,19 +543,19 @@ class DataAlpaca:
             raise AlpacaDataError("Alpaca bars contain invalid timestamps.")
         df.index = index
         df = df.sort_index()
-        if not df.index.is_unique:
+        if not cast("pd.DatetimeIndex", df.index).is_unique:
             raise AlpacaDataError("Alpaca bars contain duplicate timestamps.")
 
         numeric_columns = ["o", "h", "l", "c", "v", "n", "vw"]
-        df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors="coerce")
-        if df[numeric_columns].isna().any().any():
+        df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors="coerce") # type: ignore[reportUnknownMemberType]
+        if df[numeric_columns].isna().to_numpy().any():
             raise AlpacaDataError("Alpaca bars contain invalid numeric values.")
         if (
-            (df[["o", "h", "l", "c", "vw"]] <= 0).any().any()
-            or (df[["v", "n"]] < 0).any().any()
-            or (df["h"] < df[["o", "c"]].max(axis=1)).any()
-            or (df["l"] > df[["o", "c"]].min(axis=1)).any()
-            or (df["h"] < df["l"]).any()
+            (df[["o", "h", "l", "c", "vw"]] <= 0).to_numpy().any()
+            or (df[["v", "n"]] < 0).to_numpy().any()
+            or (df["h"] < df[["o", "c"]].max(axis=1)).to_numpy().any()
+            or (df["l"] > df[["o", "c"]].min(axis=1)).to_numpy().any()
+            or (df["h"] < df["l"]).to_numpy().any()
         ):
             raise AlpacaDataError("Alpaca bars contain inconsistent prices, volume, or trade counts.")
 
@@ -494,7 +565,8 @@ class DataAlpaca:
         # already represents the official RTH-conventioned OHLCV for the whole day, and
         # there is no separate "extended-hours daily bar" to filter against)
         if self.regular_hours_only and source_unit != "d":
-            market_index = df.index.tz_convert(self.MARKET_TIMEZONE)
+            di = cast("pd.DatetimeIndex", df.index)
+            market_index = di.tz_convert(self.MARKET_TIMEZONE)
             calendar = self._get_calendar(f"{market_index.min():%Y-%m-%d}", f"{market_index.max():%Y-%m-%d}")
             close_minutes = calendar["close_minute"].reindex(market_index.date).to_numpy(dtype=float) # NaN on non-trading days (weekends/holidays)
             interval_minutes = self.interval_timedelta.total_seconds() / 60
@@ -513,11 +585,12 @@ class DataAlpaca:
         if df.empty:
             return pd.DataFrame(columns=self.KLINES_COLUMNS)
 
-        output_index = df.index.tz_localize(None) # project convention: timestamps are stored tz-naive UTC
+        di = cast("pd.DatetimeIndex", df.index)
+        output_index = di.tz_localize(None) # project convention: timestamps are stored tz-naive UTC
         df.index = output_index.rename("time")
         df = df.rename(columns=self.COLUMN_RENAMES)
         df["time"      ] = df.index
-        df["time_close"] = df.index + self.interval_timedelta
+        df["time_close"] = cast("pd.DatetimeIndex", df.index) + self.interval_timedelta
         return df[self.KLINES_COLUMNS]
 
     def _cache_tag(self) -> str:
@@ -552,7 +625,7 @@ class DataAlpaca:
         os.makedirs(symbol_dir, exist_ok=True)
 
         now = self._now_utc()
-        available_until = now - self.SIP_DELAY if self.feed == "sip" else now
+        available_until: pd.Timestamp = now - self.SIP_DELAY if self.feed == "sip" else now
         timestamp_bgn = max(self._to_utc(self.timestamp_bgn), self._to_utc(self.DATETIME_MIN))
         timestamp_end = min(self._to_utc(self.timestamp_end), available_until)
         if timestamp_bgn >= timestamp_end:
@@ -562,7 +635,7 @@ class DataAlpaca:
         # own (partial) first month, instead of pd.date_range skipping straight to next month
         range_bgn = timestamp_bgn.tz_localize(None).replace(day=1)
         pd_date_range = pd.date_range(range_bgn, timestamp_end.tz_localize(None), freq="MS", inclusive="left")
-        dates = []
+        dates: list[str] = []
         for pd_date in pd_date_range:
             date = pd_date.strftime("%Y-%m")
             # A cached month file always represents the FULL calendar month (see the
@@ -612,7 +685,8 @@ class DataAlpaca:
             # split the block back into the same per-month csv files the old month-by-month
             # download produced, written atomically (tmp file + rename) so an interrupted
             # write can never leave a file that looks complete but isn't
-            for month_label, month_df in df.groupby(df["time"].dt.strftime("%Y-%m")):
+            month_labels = df["time"].dt.strftime("%Y-%m")
+            for month_label, month_df in df.groupby(month_labels):
                 if month_label not in block:
                     continue # defensive: shouldn't happen, block bounds match the request range
                 final_path = self.get_path(symbol, month_label)
@@ -627,7 +701,7 @@ class DataAlpaca:
         if not os.path.isdir(data_dir):
             return []
         prefix = f"{symbol}-{self.interval}-"
-        filenames = []
+        filenames: list[str] = []
         for filename in os.listdir(data_dir):
             if not (filename.startswith(prefix) and filename.endswith(".csv")):
                 continue
@@ -646,10 +720,11 @@ class DataAlpaca:
         data_dir = self.get_dir(symbol)
         filenames = self.get_filenames(data_dir, symbol)
         assert filenames, f"No files found in '{data_dir}' from '{self.timestamp_bgn}' to '{self.timestamp_end}'."
-        dfs = [pd.read_csv(os.path.join(data_dir, filename), names=self.KLINES_COLUMNS, parse_dates=["time", "time_close"]) for filename in filenames]
-        df = pd.concat(dfs)
+        dfs: list[pd.DataFrame] = [pd.read_csv(os.path.join(data_dir, filename), names=self.KLINES_COLUMNS, parse_dates=["time", "time_close"]) for filename in filenames]
+        df: pd.DataFrame = pd.concat(dfs)
         df.index = pd.DatetimeIndex(df["time"], name="time")
-        df = df[(df.index >= pd.to_datetime(self.timestamp_bgn)) & (df.index < pd.to_datetime(self.timestamp_end))]
+        di = cast("pd.DatetimeIndex", df.index)
+        df = df[(di >= pd.to_datetime(self.timestamp_bgn)) & (di < pd.to_datetime(self.timestamp_end))]
         return df
 
     def connect_db(self, mode: Literal["r", "w"] = "r", retry_seconds: int | float = 1) -> duckdb.DuckDBPyConnection:
@@ -678,9 +753,9 @@ class DataAlpaca:
               AND time  <  '{pd.to_datetime(self.timestamp_end)}'
             ORDER BY time
         """
-        df = con.query(query).to_df()
+        df: pd.DataFrame = con.query(query).to_df()
         con.close()
-        df.index = df.time
+        df.index = df["time"]
         df = df[self.KLINES_CLEAN_COLUMNS]
         return df
 
@@ -733,15 +808,15 @@ class DataAlpaca:
             # query window starting later in the day must not shift the whole bucket
             # grid, e.g. to 10:00-11:00 -- buckets stay 09:30-10:30, 10:30-11:30, ...)
             anchor_ts = pd.Timestamp("2000-01-03 09:30:00") # any date; only the time-of-day matters
-            anchor_default_edge = pd.Series(dtype="float64", index=pd.DatetimeIndex([anchor_ts])).resample(frequency, label="left").asfreq().index[0]
-            kwargs["offset"] = anchor_ts - anchor_default_edge
-        resampler = source.resample(**kwargs)
-        result = resampler.agg(self.KLINES_CLEAN_AGGRULES) # type: ignore
+            anchor_series = pd.Series(dtype="float64", index=pd.DatetimeIndex([anchor_ts]))
+            anchor_edge_index = cast(pd.DatetimeIndex, anchor_series.resample(frequency, label="left").asfreq().index) # type: ignore[reportUnknownMemberType]
+            kwargs["offset"] = anchor_ts - anchor_edge_index[0]
+        result: pd.DataFrame = source.resample(**kwargs).agg(self.KLINES_CLEAN_AGGRULES) # type: ignore[reportUnknownMemberType,reportUnknownVariableType,reportCallIssue]
 
         valid_vwap_volume = source["volume_abs"].where(source["vwap"].notna())
         weighted_vwap = source["vwap"] * valid_vwap_volume
-        vwap_numerator   = weighted_vwap.resample(**kwargs).sum(min_count=1)
-        vwap_denominator = valid_vwap_volume.resample(**kwargs).sum(min_count=1)
+        vwap_numerator: pd.Series = weighted_vwap.resample(**kwargs).sum(min_count=1) # type: ignore[reportUnknownMemberType]
+        vwap_denominator: pd.Series = valid_vwap_volume.resample(**kwargs).sum(min_count=1) # type: ignore[reportUnknownMemberType]
         result["vwap"] = vwap_numerator / vwap_denominator
 
         return result.dropna(subset=["price_open", "price_high", "price_low", "price_close"])
@@ -772,20 +847,23 @@ class DataAlpaca:
         # group in America/New_York wall-clock time so subdaily bins align to the 09:30
         # session open and day boundaries match trading days consistently across DST
         # (index is stored tz-naive UTC; localize before converting)
-        source_tz = source.index if source.index.tz is not None else source.index.tz_localize("UTC")
+        di = cast(pd.DatetimeIndex, source.index)
+        source_tz = di if di.tz is not None else di.tz_localize("UTC")
         source.index = source_tz.tz_convert(self.MARKET_TIMEZONE).tz_localize(None)
+        di = cast(pd.DatetimeIndex, source.index)
 
         source_value, source_unit = self._parse_interval(self.interval)
         if source_unit == "m":
-            aligned_ok = ((source.index.minute % source_value == 0) & (source.index.second == 0) & (source.index.microsecond == 0)).all()
+            aligned_ok = bool(((di.minute % source_value == 0) & (di.second == 0) & (di.microsecond == 0)).all())
         elif source_unit == "h":
-            aligned_ok = ((source.index.minute == 0) & (source.index.second == 0) & (source.index.microsecond == 0)).all()
+            aligned_ok = bool(((di.minute == 0) & (di.second == 0) & (di.microsecond == 0)).all())
         else: # "d" (or coarser): no intraday alignment to check
             aligned_ok = True
         if not aligned_ok:
             raise ValueError(f"Kline timestamps must be aligned to the native '{self.interval}' interval.")
 
         _, target_unit = self._parse_interval(interval)
+        result: pd.DataFrame
         if alignment == "session" and target_unit in {"m", "h"}:
             # Group by NY-local trading date FIRST, then resample independently within
             # each group. This makes "never merge across sessions" true by construction
@@ -793,7 +871,7 @@ class DataAlpaca:
             # target bucket) -- a Friday's last partial bar can never absorb Monday's
             # first bar, and an early-close day's last partial bar can never absorb data
             # from the following session, no matter how coarse the target interval is.
-            parts = [self._resample_block(day_df, frequency, anchor=True) for _, day_df in source.groupby(source.index.date)]
+            parts = [self._resample_block(day_df, frequency, anchor=True) for _, day_df in source.groupby(di.date)]
             result = pd.concat(parts) if parts else self._empty_df().set_index(pd.DatetimeIndex([], name="time"))
         else:
             # 'calendar' alignment, or a daily-or-coarser target under 'session' (where
@@ -802,8 +880,9 @@ class DataAlpaca:
             result = self._resample_block(source, frequency, anchor=False)
 
         # bin-open timestamps are currently NY wall-clock; convert back to the project's UTC storage convention
-        result.index = result.index.tz_localize(self.MARKET_TIMEZONE).tz_convert("UTC").tz_localize(None)
-        result.index = result.index.rename("time")
+        rdi = cast(pd.DatetimeIndex, result.index)
+        result.index = rdi.tz_localize(self.MARKET_TIMEZONE).tz_convert("UTC").tz_localize(None)
+        result.index = cast(pd.DatetimeIndex, result.index).rename("time")
         return result[self.KLINES_CLEAN_COLUMNS]
 
     def migrate_data(self, symbols: list[str] | str | None = None) -> None:
@@ -918,22 +997,22 @@ class AlpacaApiHelper():
         raise AlpacaDataError("Alpaca request failed without a response.")
 
     # Client Functions
-    def client_get_account(self) -> dict[str, Any]:
-        return self._request("GET", "/v2/account")
-    def client_get_clock(self) -> dict[str, Any]:
-        return self._request("GET", "/v2/clock")
-    def client_get_asset(self, symbol: str) -> dict[str, Any]:
-        return self._request("GET", f"/v2/assets/{quote(symbol, safe='')}")
-    def client_create_order(self, **params: Any) -> dict[str, Any]:
-        return self._request("POST", "/v2/orders", json_body=params)
-    def client_get_open_orders(self, **params: Any) -> list[dict[str, Any]]:
-        return self._request("GET", "/v2/orders", params=params)
-    def client_get_order(self, order_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/v2/orders/{order_id}")
+    def client_get_account(self) -> AlpacaAccount:
+        return cast(AlpacaAccount, self._request("GET", "/v2/account"))
+    def client_get_clock(self) -> AlpacaClock:
+        return cast(AlpacaClock, self._request("GET", "/v2/clock"))
+    def client_get_asset(self, symbol: str) -> AlpacaAsset:
+        return cast(AlpacaAsset, self._request("GET", f"/v2/assets/{quote(symbol, safe='')}"))
+    def client_create_order(self, **params: Any) -> AlpacaOrder:
+        return cast(AlpacaOrder, self._request("POST", "/v2/orders", json_body=params))
+    def client_get_open_orders(self, **params: Any) -> list[AlpacaOrder]:
+        return cast("list[AlpacaOrder]", self._request("GET", "/v2/orders", params=params))
+    def client_get_order(self, order_id: str) -> AlpacaOrder:
+        return cast(AlpacaOrder, self._request("GET", f"/v2/orders/{order_id}"))
     def client_cancel_order(self, order_id: str) -> None:
         self._request("DELETE", f"/v2/orders/{order_id}")
-    def client_get_position(self, symbol: str) -> dict[str, Any]:
-        return self._request("GET", f"/v2/positions/{quote(symbol, safe='')}")
+    def client_get_position(self, symbol: str) -> AlpacaPosition:
+        return cast(AlpacaPosition, self._request("GET", f"/v2/positions/{quote(symbol, safe='')}"))
 
     # Time Functions
     def get_alpaca_datetime(self) -> pd.Timestamp:
@@ -954,7 +1033,7 @@ class AlpacaApiHelper():
             side      : Literal["buy", "sell"]  ,
             qty_asset : str | None = None       ,
             qty_usd   : str | None = None       ,
-    ) -> dict[str, Any]:
+    ) -> AlpacaOrder:
         params: dict[str, Any] = {"symbol": symbol, "side": side, "type": "market", "time_in_force": "day"}
         if qty_asset is not None:
             params["qty"] = qty_asset
@@ -967,7 +1046,7 @@ class AlpacaApiHelper():
             symbol    : str                   ,
             side      : Literal["buy", "sell"],
             qty_asset : str                   ,
-    ) -> dict[str, Any]:
+    ) -> AlpacaOrder:
         return self.client_create_order(symbol=symbol, side=side, type="market", time_in_force="day", qty=qty_asset)
 
     def create_bracket_order(
@@ -977,7 +1056,7 @@ class AlpacaApiHelper():
             qty_asset : str                   ,
             sl_price  : str                   ,
             tp_price  : str                   ,
-    ) -> dict[str, Any]:
+    ) -> AlpacaOrder:
         return self.client_create_order(
             symbol        = symbol                          ,
             side          = side                             ,
@@ -998,20 +1077,21 @@ class AlpacaApiHelper():
             sl_price      : str                   ,
             tp_price      : str                   ,
             precision_usd : int = PRECISION_USD   ,
-    ) -> dict[str, Any] | None:
+    ) -> AlpacaOrder | None:
         precision = self.get_quantity_precision(symbol)
 
         qty_asset_str = None
         if qty_asset is not None:
-            qty_asset     = np.floor(float(qty_asset) * 10 ** precision) * 10 ** -precision
-            qty_asset_str = f"{qty_asset:.{precision}f}"
+            qty_asset_rounded = np.floor(float(qty_asset) * 10 ** precision) * 10 ** -precision
+            qty_asset_str = f"{qty_asset_rounded:.{precision}f}"
         elif qty_usd is not None:
             # bracket orders require a share quantity: convert the notional amount using the current ask
-            qty_usd    = np.floor(float(qty_usd) * 10 ** precision_usd) * 10 ** -precision_usd
-            ask_price  = float(self.client_get_position(symbol).get("current_price", 0)) or float(self.client_get_asset(symbol).get("close_price", 0))
+            qty_usd_rounded = np.floor(float(qty_usd) * 10 ** precision_usd) * 10 ** -precision_usd
+            ask_price  = float(self.client_get_position(symbol).get("current_price") or 0) or float(self.client_get_asset(symbol).get("close_price") or 0)
             assert ask_price > 0, f"Could not determine a reference price for '{symbol}' to size the order."
-            qty_asset     = np.floor(qty_usd / ask_price * 10 ** precision) * 10 ** -precision
-            qty_asset_str = f"{qty_asset:.{precision}f}"
+            qty_asset_rounded = np.floor(qty_usd_rounded / ask_price * 10 ** precision) * 10 ** -precision
+            qty_asset_str = f"{qty_asset_rounded:.{precision}f}"
+        assert qty_asset_str is not None, "Either 'qty_asset' or 'qty_usd' must be given."
 
         try:
             return self.create_bracket_order(symbol, side, qty_asset_str, sl_price, tp_price)
@@ -1020,7 +1100,7 @@ class AlpacaApiHelper():
             print(e)
             return None
 
-    def get_open_orders(self, symbol: str | None = None) -> list[dict[str, Any]]:
+    def get_open_orders(self, symbol: str | None = None) -> list[AlpacaOrder]:
         params: dict[str, Any] = {"status": "open"}
         if symbol is not None:
             params["symbols"] = symbol
@@ -1031,8 +1111,8 @@ class AlpacaApiHelper():
             order_id : str           ,
             tries    : int = 45 * 2  ,
             delay    : int = 30      ,
-    ) -> dict[str, Any]:
-        order : dict[str, Any] = {}
+    ) -> AlpacaOrder:
+        order : AlpacaOrder | None = None
         attempt = 0
         for attempt in range(1, tries + 1):
             try:
@@ -1048,6 +1128,7 @@ class AlpacaApiHelper():
                     raise
         if attempt > 1:
             print(f"Succeeded fetching order on attempt {attempt}/{tries} :)")
+        assert order is not None
         return order
 
     def get_account_balance(self) -> dict[str, float]:
@@ -1062,7 +1143,7 @@ class AlpacaApiHelper():
     def log_trade(
             self                     ,
             log_path : str           ,
-            order    : dict[str, Any],
+            order    : AlpacaOrder   ,
             trade_id : int           ,
             symbol   : str           ,
             sl_price : str = "NA"    ,
