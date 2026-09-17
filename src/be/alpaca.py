@@ -84,7 +84,7 @@ class AlpacaOrder(TypedDict, total=False):
     filled_avg_price  : str | None
 
 
-class DataAlpaca:
+class DataAlpacaMarkets:
     """Download, cache and query US stock bars from Alpaca's Market Data API.
 
     Mirrors ``DataBinanceVision``'s data/interval handling exactly: ``interval`` is a
@@ -137,7 +137,7 @@ class DataAlpaca:
       * Bar labeling: ``time`` is the bar's open (left-labeled), ``time_close`` is
                        open + ``interval``. ``get_data_klines`` returns exactly the
                        NATIVE provider bars for the configured ``interval`` -- e.g.
-                       ``DataAlpaca(interval='1h').get_data_klines(...)`` is Alpaca's own
+                       ``DataAlpacaMarkets(interval='1h').get_data_klines(...)`` is Alpaca's own
                        native 1-hour bar, calendar-hour aligned (e.g. 09:00-10:00, mixing
                        pre-market with regular session -- NOT session-anchored). This is
                        exactly why '30m' (not '1h') is the canonical default: 30 minutes
@@ -176,7 +176,7 @@ class DataAlpaca:
                            holiday bars are ever fabricated (there is nothing to
                            aggregate on those days, so no row is produced).
                        Native ``interval='1h'`` bars and
-                       ``DataAlpaca(interval='30m').get_data_klines_agg(symbol, '1h',
+                       ``DataAlpacaMarkets(interval='30m').get_data_klines_agg(symbol, '1h',
                        alignment='session')`` are DELIBERATELY DIFFERENT semantics for the
                        same nominal interval and are not required to (and do not) produce
                        identical bucket boundaries -- do not conflate native coarser bars
@@ -189,7 +189,7 @@ class DataAlpaca:
                        data, regardless of any particular instance's own timestamp_bgn/
                        timestamp_end -- those are output filters applied at read time
                        (``_read_csv``/``_read_db``), never fetch-clipping bounds. This
-                       matters because two ``DataAlpaca`` instances with different
+                       matters because two ``DataAlpacaMarkets`` instances with different
                        windows share the same on-disk cache: a file is only ever treated
                        as permanently complete once its calendar month has fully elapsed
                        in real time (independent of who happens to be asking), so a
@@ -336,8 +336,8 @@ class DataAlpaca:
         self.session            = session or requests.Session()
         self._calendar_cache : dict[tuple[str, str], pd.DataFrame] = {}
 
-        self.path = os.getenv("be_dav") or ""
-        assert self.path, "Environment variable 'be_dav' does not exist."
+        self.path = os.getenv("be_dam") or ""
+        assert self.path, "Environment variable 'be_dam' does not exist."
         self.db_path = os.path.join(self.path, "data_alpaca_vision.duckdb")
 
     @classmethod
@@ -643,7 +643,7 @@ class DataAlpaca:
             # particular caller's own timestamp_bgn/timestamp_end happened to want. So
             # "complete" depends only on whether the calendar month has fully elapsed in
             # real time (available_until), never on this instance's own window: two
-            # DataAlpaca instances with different timestamp_bgn/timestamp_end must always
+            # DataAlpacaMarkets instances with different timestamp_bgn/timestamp_end must always
             # agree on whether a given month's cache file is trustworthy. Without this, a
             # narrow instance (e.g. a mid-month timestamp_bgn) could write a partial file
             # that a later, wider instance would then silently trust as complete -- a real
