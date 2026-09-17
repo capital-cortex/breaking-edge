@@ -63,8 +63,18 @@ class DataBinanceVision:
     DATETIME_MIN            = "1970-01"
     DATETIME_MAX            = "2170-01"
     
-    timestamp_bgn: str
-    timestamp_end: str
+    market_type      : Literal["futures"  , "spot"             ]
+    futures_type     : Literal["um"       , "cm"     ,""       ]
+    period           : Literal["daily"    , "monthly", "live"  ]
+    data_type        : Literal["bookDepth", "klines" , "trades"]
+    interval         : Literal["1s", "1m", "3m", "5m", "15m", "30m",
+                               "1h", "2h", "4h", "6h",  "8h", "12h",
+                               "1d", "3d", "1w", "1mo", ""     ]
+    timestamp_bgn    : str
+    timestamp_end    : str
+    path             : str
+    db_path          : str
+    klinesrdy_path_f : str
     
     # TODO: input validation
     # TODO: disabled symbols _ -> ~
