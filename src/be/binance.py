@@ -196,12 +196,12 @@ class DataBinanceVision:
                 try:
                     response = requests.get("https://api.binance.com/api/v3/klines", params=params)
                 except Exception as e:
-                    print(f"Failed to download all data for '{symbol}':")
-                    print(e)
+                    tqdm.write(f"Failed to download all data for '{symbol}':")
+                    tqdm.write(str(e))
                     continue
                 if response.status_code != 200:
-                    print(f"Failed to download all data for '{symbol}':")
-                    print(f"Response ({response.status_code}): {response.json()}")
+                    tqdm.write(f"Failed to download all data for '{symbol}':")
+                    tqdm.write(f"Response ({response.status_code}): {response.json()}")
                     continue
                 first_time : int = response.json()[0][0]
                 timestamp_min = pd.to_datetime(first_time, unit="ms").strftime(format)
@@ -229,18 +229,18 @@ class DataBinanceVision:
                 try:
                     response = requests.get(url, stream=True)
                 except Exception as e:
-                    print(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
-                    print(e)
+                    tqdm.write(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
+                    tqdm.write(str(e))
                     break
                 if response.status_code == 404:
                     if not first_file_found and pd.to_datetime(date) < newest_file_datetime:
                         continue
-                    print(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
-                    print(f"Response (404): File '{os.path.basename(path)}' does not exist.")
+                    tqdm.write(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
+                    tqdm.write(f"Response (404): File '{os.path.basename(path)}' does not exist.")
                     break
                 if response.status_code != 200:
-                    print(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
-                    print(f"Response ({response.status_code}): {response.json()}")
+                    tqdm.write(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
+                    tqdm.write(f"Response ({response.status_code}): {response.json()}")
                     break
                 first_file_found = True
                 with open(path, "wb") as f:
@@ -368,7 +368,7 @@ class DataBinanceVision:
         if file_type == "db" and self.period != "live":
             df = self._read_db(symbol)
             if not (np.diff(utils.get_bar_seconds(df)) == 0.0).all():
-                print(f"Index for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}' is not evenly spaced.")
+                tqdm.write(f"Index for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}' is not evenly spaced.")
             if df.empty and errors == "raise":
                 raise AssertionError(f"No data in db for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}'.")
             return df
@@ -377,7 +377,7 @@ class DataBinanceVision:
             orig_len = len(df)
             df = df.resample(utils.interval_to_freq(self.interval), label="left").asfreq()
             if (filled_bars := len(df) - orig_len) != 0:
-                print(f"Filled {filled_bars}/{len(df)} bar{"" if filled_bars == 1 else "s"} for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}'.")
+                tqdm.write(f"Filled {filled_bars}/{len(df)} bar{"" if filled_bars == 1 else "s"} for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}'.")
             df = utils.fillna(df)
             df["time_close"] = df.index + utils.interval_to_dateoffset(self.interval)
         except:
@@ -522,7 +522,8 @@ class DataBinanceVision:
         timestamp_end_tmp = self.timestamp_end
         any_data = False
         progress = None if len(symbols) == 1 else tqdm(symbols, desc="Migrating symbols to duckdb")
-        for i, symbol in (enumerate(progress) if progress else enumerate(symbols)):
+        enumerate_symbols = enumerate(progress) if progress else enumerate(symbols)
+        for i, symbol in enumerate_symbols:
             if progress is not None:
                 progress.set_description(f"Migrating '{symbol}' to duckdb")
             timestamp_bgn, timestamp_end = timestamps_bgn[i], timestamps_end[i]
