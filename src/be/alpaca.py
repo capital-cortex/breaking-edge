@@ -299,14 +299,14 @@ class DataAlpaca:
 
     def __init__(
             self,
-            interval           : Intervals              = "30m"     ,
+            api_key            : str                                ,
+            api_secret         : str                                ,
+            interval           : Intervals               = "30m"    ,
             timestamp_bgn      : str                     = "1970-01",
             timestamp_end      : str                     = "2170-01",
             feed               : Feed                    = "sip"    ,
-            adjustment         : str                     = "split"    ,
-            regular_hours_only : bool                    = True     ,
-            api_key            : str | None              = None     ,
-            api_secret         : str | None              = None     ,
+            adjustment         : str                     = "split"  ,
+            regular_hours_only : bool                    =  True    ,
             timeout            : float                   = 30.0     ,
             max_retries        : int                     = 3        ,
             session            : requests.Session | None = None     ,
@@ -320,17 +320,17 @@ class DataAlpaca:
             raise ValueError("'timeout' must be greater than zero.")
         if max_retries < 0:
             raise ValueError("'max_retries' must be zero or greater.")
-
-        self.interval            = interval
-        self.timeframe           = self.INTERVAL_TO_TIMEFRAME[interval]
-        self.interval_timedelta  = self._interval_timedelta(interval)
+        
+        self.api_key            = api_key    
+        self.api_secret         = api_secret 
+        self.interval           = interval
+        self.timeframe          = self.INTERVAL_TO_TIMEFRAME[interval]
+        self.interval_timedelta = self._interval_timedelta(interval)
         self.timestamp_bgn      = timestamp_bgn
         self.timestamp_end      = timestamp_end
         self.feed               = feed
         self.adjustment         = adjustment
         self.regular_hours_only = regular_hours_only
-        self.api_key            = api_key    or os.getenv("APCA_API_KEY_ID"    ) or ""
-        self.api_secret         = api_secret or os.getenv("APCA_API_SECRET_KEY") or ""
         self.timeout            = timeout
         self.max_retries        = max_retries
         self.session            = session or requests.Session()
@@ -399,7 +399,7 @@ class DataAlpaca:
         if not self.api_key or not self.api_secret:
             raise ValueError(
                 "Alpaca credentials are required. Pass 'api_key'/'api_secret' or set "
-                "'APCA_API_KEY_ID'/'APCA_API_SECRET_KEY'."
+                
             )
         return {
             "APCA-API-KEY-ID"     : self.api_key   ,
@@ -933,15 +933,15 @@ class AlpacaApiHelper():
 
     def __init__(
             self                                        ,
-            api_key     : str | None              = None,
-            api_secret  : str | None              = None,
+            api_key     : str                           ,
+            api_secret  : str                           ,
             paper       : bool                    = True,
             timeout     : float                   = 30.0,
             max_retries : int                     = 3   ,
             session     : requests.Session | None = None,
     ) -> None:
-        self.api_key     = api_key    or os.getenv("APCA_API_KEY_ID"    ) or ""
-        self.api_secret  = api_secret or os.getenv("APCA_API_SECRET_KEY") or ""
+        self.api_key     = api_key    
+        self.api_secret  = api_secret 
         assert self.api_key and self.api_secret, (
             "Alpaca trading requires credentials. Pass 'api_key'/'api_secret' or set "
             "'APCA_API_KEY_ID'/'APCA_API_SECRET_KEY'."
