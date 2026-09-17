@@ -321,11 +321,9 @@ class DataAlpacaMarkets:
         if max_retries < 0:
             raise ValueError("'max_retries' must be zero or greater.")
         
-        self.api_key            = api_key    
-        self.api_secret         = api_secret 
+        self.api_key            = api_key
+        self.api_secret         = api_secret
         self.interval           = interval
-        self.timeframe          = self.INTERVAL_TO_TIMEFRAME[interval]
-        self.interval_timedelta = self._interval_timedelta(interval)
         self.timestamp_bgn      = timestamp_bgn
         self.timestamp_end      = timestamp_end
         self.feed               = feed
@@ -371,6 +369,19 @@ class DataAlpacaMarkets:
         if unit == "d": return pd.Timedelta(days=value)
         if unit == "w": return pd.Timedelta(weeks=value)
         return pd.Timedelta(days=30 * value) # "mo": approximate, resampling itself uses calendar-correct "MS"
+
+    def get_timeframe(self) -> str:
+        """Alpaca's native bar timeframe for the CURRENTLY configured ``self.interval`` --
+        always computed fresh, never cached, so changing ``self.interval`` after
+        construction can never leave this (or anything derived from it) stale."""
+        if self.interval not in self.INTERVAL_TO_TIMEFRAME:
+            raise ValueError(f"Unsupported Alpaca interval: '{self.interval}'. Must be one of {sorted(self.INTERVAL_TO_TIMEFRAME)}.")
+        return self.INTERVAL_TO_TIMEFRAME[self.interval]
+
+    def get_interval_timedelta(self) -> pd.Timedelta:
+        """Duration of one native bar for the CURRENTLY configured ``self.interval``."""
+        self.get_timeframe() # validates self.interval is still a supported native interval
+        return self._interval_timedelta(self.interval)
 
     @classmethod
     def _resample_frequency(cls, interval: str) -> str:
@@ -467,7 +478,7 @@ class DataAlpacaMarkets:
     def _request_bars(self, symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> list[AlpacaBar]:
         url = self.URL_F.format(symbol=quote(symbol, safe=""))
         params: dict[str, Any] = {
-            "timeframe"  : self.timeframe            ,
+            "timeframe"  : self.get_timeframe()      ,
             "start"      : self._to_rfc3339(start)  ,
             "end"        : self._to_rfc3339(end)    ,
             "feed"       : self.feed                ,
@@ -569,7 +580,7 @@ class DataAlpacaMarkets:
             market_index = di.tz_convert(self.MARKET_TIMEZONE)
             calendar = self._get_calendar(f"{market_index.min():%Y-%m-%d}", f"{market_index.max():%Y-%m-%d}")
             close_minutes = calendar["close_minute"].reindex(market_index.date).to_numpy(dtype=float) # NaN on non-trading days (weekends/holidays)
-            interval_minutes = self.interval_timedelta.total_seconds() / 60
+            interval_minutes = self.get_interval_timedelta().total_seconds() / 60
             bar_open_minutes  = market_index.hour * 60 + market_index.minute
             bar_close_minutes = bar_open_minutes + interval_minutes
             # keep a native bar if its [open, open+interval) window overlaps the regular
@@ -590,7 +601,7 @@ class DataAlpacaMarkets:
         df.index = output_index.rename("time")
         df = df.rename(columns=self.COLUMN_RENAMES)
         df["time"      ] = df.index
-        df["time_close"] = cast("pd.DatetimeIndex", df.index) + self.interval_timedelta
+        df["time_close"] = cast("pd.DatetimeIndex", df.index) + self.get_interval_timedelta()
         return df[self.KLINES_COLUMNS]
 
     def _cache_tag(self) -> str:
@@ -825,11 +836,12 @@ class DataAlpacaMarkets:
         if alignment not in ("session", "calendar"):
             raise ValueError(f"Invalid 'alignment': must be one of 'session', 'calendar'. Got: '{alignment}'.")
         target_timedelta = self._interval_timedelta(interval)
+        native_timedelta = self.get_interval_timedelta()
         # never fabricate finer data out of a coarser native source (e.g. native '1h'
         # can't produce '15m') -- fail closed instead of silently returning garbage
-        if target_timedelta < self.interval_timedelta:
+        if target_timedelta < native_timedelta:
             raise ValueError(f"Cannot aggregate native '{self.interval}' data down to a finer interval '{interval}'.")
-        if target_timedelta % self.interval_timedelta != pd.Timedelta(0):
+        if target_timedelta % native_timedelta != pd.Timedelta(0):
             raise ValueError(f"Target interval '{interval}' must be an exact multiple of the native '{self.interval}' interval.")
 
         frequency = self._resample_frequency(interval)
