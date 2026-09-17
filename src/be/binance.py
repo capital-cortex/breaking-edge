@@ -63,6 +63,9 @@ class DataBinanceVision:
     DATETIME_MIN            = "1970-01"
     DATETIME_MAX            = "2170-01"
     
+    timestamp_bgn: str
+    timestamp_end: str
+    
     # TODO: input validation
     # TODO: disabled symbols _ -> ~
     # TODO: rename file_type -> source
@@ -187,14 +190,14 @@ class DataBinanceVision:
         timestamp_max = pd.Timestamp.now("utc").tz_localize(None).strftime(format)
         timestamp_bgn = max(pd.to_datetime(self.timestamp_bgn), pd.to_datetime(timestamp_min))
         timestamp_end = min(pd.to_datetime(self.timestamp_end), pd.to_datetime(timestamp_max))
-        pd_date_range = pd.date_range(timestamp_bgn, timestamp_end, freq=freq, inclusive="left")
+        pd_date_range = pd.date_range(timestamp_bgn, timestamp_end, freq=freq, inclusive="both")
         dates = [date for pd_date in pd_date_range if not os.path.exists(self.get_path(symbol, date := pd_date.strftime(format)))]
         newest_filename      = max(filenames) if (filenames := os.listdir(symbol_dir)) else self.DATETIME_MAX
         newest_file_date     = "-".join(part for part in newest_filename.split(".")[0].split("-") if part.isnumeric())
         newest_file_datetime = pd.to_datetime(newest_file_date)
         desc_url = "/".join(self.get_url(symbol, "").split("/data/")[-1].split("/")[:-1])
         first_file_found = False
-        for date in tqdm(dates, desc=f"Downloading .../{desc_url}", unit="file"):
+        for date in tqdm(dates[:-1], desc=f"Downloading .../{desc_url}", unit="file"):
             time.sleep(delay)
             url  = self.get_url (symbol, date)
             path = self.get_path(symbol, date)
@@ -221,10 +224,13 @@ class DataBinanceVision:
                         f.write(chunk)
             self._clean_zip(path)
         if self.data_type == "klines" and migrate and dates:
-            timestamp_tmp = self.timestamp_bgn
-            self.timestamp_bgn = dates[0]
+            timestamp_bgn_tmp  = self.timestamp_bgn
+            timestamp_end_tmp  = self.timestamp_end
+            self.timestamp_bgn = dates[ 0]
+            self.timestamp_end = dates[-1]
             self.migrate_data(symbol)
-            self.timestamp_bgn = timestamp_tmp
+            self.timestamp_bgn = timestamp_bgn_tmp
+            self.timestamp_end = timestamp_end_tmp
         return True
     
     def get_filenames(self, data_dir: str) -> list[str]:
