@@ -549,6 +549,7 @@ class DataBinanceVision:
             con.close()
             return
         con.execute(f"""
+            DROP TABLE IF EXISTS {table_name}_ordered;
             CREATE TABLE {table_name}_ordered ({TABLE_SCHEMA});
             INSERT INTO {table_name}_ordered SELECT * FROM {table_name}
             ORDER BY symbol, time;
