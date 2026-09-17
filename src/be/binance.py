@@ -493,14 +493,19 @@ class DataBinanceVision:
         """
         con.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({TABLE_SCHEMA});")
         iter_symbols = symbols if len(symbols) == 1 else tqdm(symbols, desc="Migrating symbols to duckdb")
+        any_data = False
         for symbol in iter_symbols:
             df = self.get_data_klines(symbol, file_type="csv", errors="empty")
             if df.empty:
                 continue
+            any_data = True
             df["time"  ] = df.index
             df["symbol"] = symbol
             df = df[["symbol", "time", *self.KLINES_CLEAN_COLUMNS]]
             con.execute(f"INSERT INTO {table_name} SELECT * FROM df ON CONFLICT (symbol, time) DO NOTHING")
+        if not any_data:
+            con.close()
+            return
         con.execute(f"""
             CREATE TABLE {table_name}_ordered ({TABLE_SCHEMA});
             INSERT INTO {table_name}_ordered SELECT * FROM {table_name}
