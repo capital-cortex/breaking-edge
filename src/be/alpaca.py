@@ -120,16 +120,14 @@ class DataAlpacaMarkets:
                        for a continuous, split-adjusted series with proportionally
                        scaled volume -- required for any return/backtest calculation
                        spanning a split date.
-      * Session     : Extended hours included by default (``regular_hours_only=False``) --
-                       pre-market, regular and post-market prints are all downloaded and
-                       cached. Pass ``regular_hours_only=True`` to restrict to the regular
-                       session, 09:30 to the day's official close, per symbol-agnostic
-                       close time fetched from Alpaca's own ``/v2/calendar`` endpoint
-                       (handles holidays and early-close/half days, e.g. 13:00 on the day
-                       before July 4th -- verified against real 2024-07-03 volume data).
-                       Either way, ``get_data_klines``/``get_data_klines_agg`` can further
-                       narrow the result at READ time via ``session=`` ('all', 'premarket',
-                       'regular', 'afterhours') without needing a separate cache.
+      * Session     : Extended hours included by default (``regular_hours_only=False``).
+                       Pass ``regular_hours_only=True`` to cache regular session only, 09:30
+                       to the day's official close, per symbol-agnostic close time fetched
+                       from Alpaca's own ``/v2/calendar`` endpoint (handles holidays and
+                       early-close/half days, e.g. 13:00 on the day before July 4th --
+                       verified against real 2024-07-03 volume data). Either way,
+                       ``get_data_klines``/``get_data_klines_agg`` accept ``session=`` ('all',
+                       'premarket', 'regular', 'afterhours') to narrow the result at read time.
                        For native ``interval='1d'`` bars this flag has NO effect: Alpaca's
                        daily bar already represents the whole official trading day (its
                        't' timestamp is a calendar-day label, not a session open time),
@@ -612,11 +610,8 @@ class DataAlpacaMarkets:
         return df[self.KLINES_COLUMNS]
 
     def _validate_klines(self, df: pd.DataFrame) -> None:
-        """Fail-closed structural/logical validation for already-native, already-renamed
-        kline data (``KLINES_CLEAN_COLUMNS`` shape) -- the same invariants ``_bars_to_df``
-        enforces on freshly-downloaded API bars, re-applied on the CSV-read path so no
-        unvalidated/corrupted row can ever reach the duckdb cache via ``migrate_data``.
-        Raises ``AlpacaDataError`` on any violation; never repairs or silently drops rows."""
+        """Fail-closed CSV-read validation, mirroring ``_bars_to_df``'s invariants so no
+        corrupted row reaches ``migrate_data``'s duckdb insert."""
         cls = type(self)
         missing = [column for column in cls.KLINES_CLEAN_COLUMNS if column not in df.columns]
         if missing:
@@ -645,15 +640,12 @@ class DataAlpacaMarkets:
             raise AlpacaDataError("Kline data contains inconsistent prices, volume, or trade counts.")
         if df.empty:
             return
-        # time_close must be EXACTLY one native bar duration after time, not merely
-        # after it -- a corrupted/truncated bar duration would otherwise slip through
+        # time_close must be EXACTLY one native interval after time, not merely after it
         expected_time_close = df["time"] + self.get_interval_timedelta()
         if not (df["time_close"] == expected_time_close).all():
             raise AlpacaDataError("Kline data contains a bar duration inconsistent with the native interval (time_close != time + interval).")
 
-        # native intraday timestamps must fall exactly on the configured interval's grid
-        # (e.g. 30m bars at :00/:30) -- missing bars (halts, no trades) stay legitimate,
-        # this only rejects a bar whose OWN timestamp is off-grid
+        # native intraday timestamps must fall on the interval grid; missing bars stay legitimate
         value, source_unit = self._parse_interval(self.interval)
         if source_unit in ("m", "h"):
             if source_unit == "m":
@@ -664,13 +656,8 @@ class DataAlpacaMarkets:
                 raise AlpacaDataError(f"Kline data contains timestamps not aligned to the native '{self.interval}' interval grid.")
 
     def _session_filter(self, df: pd.DataFrame, session: Session) -> pd.DataFrame:
-        """Filter already-native kline data down to one Alpaca extended-hours session,
-        classified purely at read time from NY-local minute-of-day + Alpaca's own trading
-        calendar (never persisted -- no schema/column change). A bar is kept if its
-        [open, open+interval) window OVERLAPS the target session at all (same overlap
-        convention as the existing regular-hours filter in ``_bars_to_df``), so a coarse
-        bucket straddling a session boundary is never silently dropped in full.
-        ``session='all'`` is a no-op (identity), so existing callers are unaffected."""
+        """Filter already-native kline data to one session, classified at read time from
+        NY-local minute-of-day + Alpaca's calendar (no schema/column change)."""
         if session == "all" or df.empty:
             return df
         if session not in ("premarket", "regular", "afterhours"):
@@ -919,10 +906,7 @@ class DataAlpacaMarkets:
         return self.klines_resample(df, interval, alignment, session)
 
     def _session_anchor_minute(self, day: Any, session: Session, close_minutes: "pd.Series[float] | None") -> int:
-        """Sub-daily aggregation bin anchor (minutes past midnight) for one NY trading
-        day, per requested session: 09:30 for 'regular'/'all' (unchanged default
-        behavior), 04:00 for 'premarket', the day's own official calendar close (early-
-        close-aware) for 'afterhours'."""
+        """Sub-daily resample anchor (minutes past midnight) for one NY trading day."""
         if session == "premarket":
             return self.PREMARKET_OPEN_MINUTE
         if session == "afterhours" and close_minutes is not None:
@@ -1008,13 +992,8 @@ class DataAlpacaMarkets:
             # target bucket) -- a Friday's last partial bar can never absorb Monday's
             # first bar, and an early-close day's last partial bar can never absorb data
             # from the following session, no matter how coarse the target interval is.
-            # Additionally -- independent of the 'session' filter argument -- group by
-            # SUB-SESSION (premarket/regular/afterhours) within each day, so a bucket can
-            # never straddle the 09:30 open or the official close either (this matters
-            # whenever the source itself spans more than one session, e.g. session='all'
-            # on extended-hours data: without this, a plain day-grouped 09:30-anchored
-            # resample would otherwise merge e.g. 15:30-16:00 regular data with 16:00-
-            # 16:30 afterhours data into one 15:30-16:30 bucket).
+            # Also group by sub-session (premarket/regular/afterhours) within each day,
+            # so a bucket never straddles the 09:30 open or the official close either.
             calendar = self._get_calendar(f"{di.min():%Y-%m-%d}", f"{di.max():%Y-%m-%d}")
             close_minutes = calendar["close_minute"]
             close_minute_per_bar = close_minutes.reindex(di.date).to_numpy(dtype=float)
