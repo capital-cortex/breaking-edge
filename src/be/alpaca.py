@@ -120,12 +120,16 @@ class DataAlpacaMarkets:
                        for a continuous, split-adjusted series with proportionally
                        scaled volume -- required for any return/backtest calculation
                        spanning a split date.
-      * Session     : Regular trading hours only by default (``regular_hours_only=True``),
-                       09:30 to the day's official close, per symbol-agnostic close time
-                       fetched from Alpaca's own ``/v2/calendar`` endpoint (handles
-                       holidays and early-close/half days, e.g. 13:00 on the day before
-                       July 4th -- verified against real 2024-07-03 volume data).
-                       ``regular_hours_only=False`` includes pre-/post-market prints.
+      * Session     : Extended hours included by default (``regular_hours_only=False``) --
+                       pre-market, regular and post-market prints are all downloaded and
+                       cached. Pass ``regular_hours_only=True`` to restrict to the regular
+                       session, 09:30 to the day's official close, per symbol-agnostic
+                       close time fetched from Alpaca's own ``/v2/calendar`` endpoint
+                       (handles holidays and early-close/half days, e.g. 13:00 on the day
+                       before July 4th -- verified against real 2024-07-03 volume data).
+                       Either way, ``get_data_klines``/``get_data_klines_agg`` can further
+                       narrow the result at READ time via ``session=`` ('all', 'premarket',
+                       'regular', 'afterhours') without needing a separate cache.
                        For native ``interval='1d'`` bars this flag has NO effect: Alpaca's
                        daily bar already represents the whole official trading day (its
                        't' timestamp is a calendar-day label, not a session open time),
@@ -309,7 +313,7 @@ class DataAlpacaMarkets:
             timestamp_end      : str                     = "2170-01",
             feed               : Feed                    = "sip"    ,
             adjustment         : str                     = "split"  ,
-            regular_hours_only : bool                    =  True    ,
+            regular_hours_only : bool                    =  False   ,
             timeout            : float                   = 30.0     ,
             max_retries        : int                     = 3        ,
             session            : requests.Session | None = None     ,
