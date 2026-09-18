@@ -120,12 +120,14 @@ class DataAlpacaMarkets:
                        for a continuous, split-adjusted series with proportionally
                        scaled volume -- required for any return/backtest calculation
                        spanning a split date.
-      * Session     : Regular trading hours only by default (``regular_hours_only=True``),
-                       09:30 to the day's official close, per symbol-agnostic close time
-                       fetched from Alpaca's own ``/v2/calendar`` endpoint (handles
-                       holidays and early-close/half days, e.g. 13:00 on the day before
-                       July 4th -- verified against real 2024-07-03 volume data).
-                       ``regular_hours_only=False`` includes pre-/post-market prints.
+      * Session     : Extended hours included by default (``regular_hours_only=False``).
+                       Pass ``regular_hours_only=True`` to cache regular session only, 09:30
+                       to the day's official close, per symbol-agnostic close time fetched
+                       from Alpaca's own ``/v2/calendar`` endpoint (handles holidays and
+                       early-close/half days, e.g. 13:00 on the day before July 4th --
+                       verified against real 2024-07-03 volume data). Either way,
+                       ``get_data_klines``/``get_data_klines_agg`` accept ``session=`` ('all',
+                       'premarket', 'regular', 'afterhours') to narrow the result at read time.
                        For native ``interval='1d'`` bars this flag has NO effect: Alpaca's
                        daily bar already represents the whole official trading day (its
                        't' timestamp is a calendar-day label, not a session open time),
@@ -245,6 +247,7 @@ class DataAlpacaMarkets:
     Feed      = Literal["sip", "iex"]
     Errors    = Literal["raise", "empty"]
     Alignment = Literal["session", "calendar"]
+    Session   = Literal["all", "premarket", "regular", "afterhours"]
 
     URL_F                 = "https://data.alpaca.markets/v2/stocks/{symbol}/bars"
     CALENDAR_URL          = "https://api.alpaca.markets/v2/calendar"
@@ -263,6 +266,8 @@ class DataAlpacaMarkets:
     SIP_DELAY             = pd.Timedelta(minutes=15)
     MARKET_TIMEZONE       = "America/New_York"
     MARKET_OPEN_MINUTE    = 9 * 60 + 30
+    PREMARKET_OPEN_MINUTE = 4 * 60      # 04:00 ET
+    AFTERHOURS_CLOSE_MINUTE = 20 * 60   # 20:00 ET
     PAGE_LIMIT            = 10_000
     ADJUSTMENTS           = {"raw", "split", "dividend", "spin-off", "all"}
     API_COLUMNS_REQUIRED  = ["t", "o", "h", "l", "c", "v", "n", "vw"]
@@ -306,7 +311,7 @@ class DataAlpacaMarkets:
             timestamp_end      : str                     = "2170-01",
             feed               : Feed                    = "sip"    ,
             adjustment         : str                     = "split"  ,
-            regular_hours_only : bool                    =  True    ,
+            regular_hours_only : bool                    =  False   ,
             timeout            : float                   = 30.0     ,
             max_retries        : int                     = 3        ,
             session            : requests.Session | None = None     ,
@@ -604,6 +609,80 @@ class DataAlpacaMarkets:
         df["time_close"] = cast("pd.DatetimeIndex", df.index) + self.get_interval_timedelta()
         return df[self.KLINES_COLUMNS]
 
+    def _validate_klines(self, df: pd.DataFrame) -> None:
+        """Fail-closed CSV-read validation, mirroring ``_bars_to_df``'s invariants so no
+        corrupted row reaches ``migrate_data``'s duckdb insert."""
+        cls = type(self)
+        missing = [column for column in cls.KLINES_CLEAN_COLUMNS if column not in df.columns]
+        if missing:
+            raise AlpacaDataError(f"Kline data is missing required columns: {missing}")
+        if not isinstance(df.index, pd.DatetimeIndex):
+            raise AlpacaDataError("Kline data index must be a DatetimeIndex.")
+        di = df.index
+        if di.hasnans:
+            raise AlpacaDataError("Kline data contains invalid (NaT) timestamps.")
+        if not di.is_monotonic_increasing:
+            raise AlpacaDataError("Kline data timestamps are not sorted.")
+        if not di.is_unique:
+            raise AlpacaDataError("Kline data contains duplicate timestamps.")
+
+        numeric_columns = ["price_open", "price_high", "price_low", "price_close", "volume_abs", "trades", "vwap"]
+        numeric = df[numeric_columns].apply(pd.to_numeric, errors="coerce") # type: ignore[reportUnknownMemberType]
+        if numeric.isna().to_numpy().any():
+            raise AlpacaDataError("Kline data contains invalid/non-numeric values.")
+        if (
+            (df[["price_open", "price_high", "price_low", "price_close", "vwap"]] <= 0).to_numpy().any()
+            or (df[["volume_abs", "trades"]] < 0).to_numpy().any()
+            or (df["price_high"] < df[["price_open", "price_close"]].max(axis=1)).to_numpy().any()
+            or (df["price_low"]  > df[["price_open", "price_close"]].min(axis=1)).to_numpy().any()
+            or (df["price_high"] < df["price_low"]).to_numpy().any()
+        ):
+            raise AlpacaDataError("Kline data contains inconsistent prices, volume, or trade counts.")
+        if df.empty:
+            return
+        # time_close must be EXACTLY one native interval after time, not merely after it
+        expected_time_close = df["time"] + self.get_interval_timedelta()
+        if not (df["time_close"] == expected_time_close).all():
+            raise AlpacaDataError("Kline data contains a bar duration inconsistent with the native interval (time_close != time + interval).")
+
+        # native intraday timestamps must fall on the interval grid; missing bars stay legitimate
+        value, source_unit = self._parse_interval(self.interval)
+        if source_unit in ("m", "h"):
+            if source_unit == "m":
+                on_grid = (di.minute % value == 0) & (di.second == 0) & (di.microsecond == 0)
+            else: # "h"
+                on_grid = (di.minute == 0) & (di.second == 0) & (di.microsecond == 0)
+            if not bool(on_grid.all()):
+                raise AlpacaDataError(f"Kline data contains timestamps not aligned to the native '{self.interval}' interval grid.")
+
+    def _session_filter(self, df: pd.DataFrame, session: Session) -> pd.DataFrame:
+        """Filter already-native kline data to one session, classified at read time from
+        NY-local minute-of-day + Alpaca's calendar (no schema/column change)."""
+        if session == "all" or df.empty:
+            return df
+        if session not in ("premarket", "regular", "afterhours"):
+            raise ValueError(f"Invalid 'session': must be one of 'all', 'premarket', 'regular', 'afterhours'. Got: '{session}'.")
+        _, source_unit = self._parse_interval(self.interval)
+        if source_unit == "d":
+            raise ValueError("Session filtering is not applicable to native daily bars (no intraday time-of-day information).")
+
+        di = cast("pd.DatetimeIndex", df.index)
+        market_index = di.tz_localize("UTC").tz_convert(self.MARKET_TIMEZONE)
+        calendar = self._get_calendar(f"{market_index.min():%Y-%m-%d}", f"{market_index.max():%Y-%m-%d}")
+        close_minutes = calendar["close_minute"].reindex(market_index.date).to_numpy(dtype=float) # NaN on non-trading days
+        interval_minutes = self.get_interval_timedelta().total_seconds() / 60
+        bar_open_minutes  = market_index.hour * 60 + market_index.minute
+        bar_close_minutes = bar_open_minutes + interval_minutes
+        not_nan_close = ~np.isnan(close_minutes)
+
+        if session == "premarket":
+            mask = (bar_close_minutes > self.PREMARKET_OPEN_MINUTE) & (bar_open_minutes < self.MARKET_OPEN_MINUTE) & not_nan_close
+        elif session == "regular":
+            mask = (bar_close_minutes > self.MARKET_OPEN_MINUTE) & (bar_open_minutes < close_minutes) # NaN comparisons are False
+        else: # "afterhours"
+            mask = (bar_close_minutes > close_minutes) & (bar_open_minutes < self.AFTERHOURS_CLOSE_MINUTE) & not_nan_close
+        return df[mask]
+
     def _cache_tag(self) -> str:
         # adjustment and regular_hours_only change the actual data content (split-adjusted
         # vs raw prints, RTH-only vs extended hours) -- they must be part of the cache
@@ -746,6 +825,7 @@ class DataAlpacaMarkets:
         dfs: list[pd.DataFrame] = [pd.read_csv(os.path.join(data_dir, filename), names=self.KLINES_COLUMNS, parse_dates=["time", "time_close"]) for filename in filenames]
         df: pd.DataFrame = pd.concat(dfs)
         df.index = pd.DatetimeIndex(df["time"], name="time")
+        self._validate_klines(df) # fail closed: guards every caller, incl. migrate_data's duckdb insert
         di = cast("pd.DatetimeIndex", df.index)
         df = df[(di >= pd.to_datetime(self.timestamp_bgn)) & (di < pd.to_datetime(self.timestamp_end))]
         return df
@@ -782,10 +862,10 @@ class DataAlpacaMarkets:
         df = df[self.KLINES_CLEAN_COLUMNS]
         return df
 
-    def get_data(self, symbol: str, file_type: Literal["csv", "db"] = "db", errors: Errors = "raise") -> pd.DataFrame:
-        return self.get_data_klines(symbol, file_type, errors)
+    def get_data(self, symbol: str, file_type: Literal["csv", "db"] = "db", errors: Errors = "raise", session: Session = "all") -> pd.DataFrame:
+        return self.get_data_klines(symbol, file_type, errors, session)
 
-    def get_data_klines(self, symbol: str, file_type: Literal["csv", "db"] = "db", errors: Errors = "raise") -> pd.DataFrame:
+    def get_data_klines(self, symbol: str, file_type: Literal["csv", "db"] = "db", errors: Errors = "raise", session: Session = "all") -> pd.DataFrame:
         assert file_type in ["csv", "db"], f"Invalid arg: 'file_type' must be one of 'csv', 'db'. Got: '{file_type}'."
         symbol = symbol.strip().upper()
         if file_type == "db":
@@ -795,16 +875,19 @@ class DataAlpacaMarkets:
                 match errors:
                     case "raise": raise
                     case "empty": return self._empty_df()
+            df = self._session_filter(df, session)
             if df.empty and errors == "raise":
                 raise AssertionError(f"No data in db for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}'.")
             return df
         try:
             df = self._read_csv(symbol)
+        except AlpacaDataError:
+            raise # fail closed: corrupted/invalid cached data must never be silently dropped, even for errors='empty'
         except Exception:
             match errors:
                 case "raise": raise
                 case "empty": return self._empty_df()
-        return df[self.KLINES_CLEAN_COLUMNS]
+        return self._session_filter(df[self.KLINES_CLEAN_COLUMNS], session)
 
     def get_data_klines_agg(
             self                                  ,
@@ -813,24 +896,36 @@ class DataAlpacaMarkets:
             file_type : Literal["csv", "db"] = "db",
             errors    : Errors               = "raise" ,
             alignment : Alignment             = "session",
+            session   : Session               = "all"   ,
     ) -> pd.DataFrame:
         if interval == self.interval:
-            return self.get_data_klines(symbol, file_type, errors)
-        df = self.get_data_klines(symbol, file_type, errors)
+            return self.get_data_klines(symbol, file_type, errors, session)
+        df = self.get_data_klines(symbol, file_type, errors, session)
         if df.empty:
             return df
-        return self.klines_resample(df, interval, alignment)
+        return self.klines_resample(df, interval, alignment, session)
 
-    def _resample_block(self, source: pd.DataFrame, frequency: str, anchor: bool) -> pd.DataFrame:
+    def _session_anchor_minute(self, day: Any, session: Session, close_minutes: "pd.Series[float] | None") -> int:
+        """Sub-daily resample anchor (minutes past midnight) for one NY trading day."""
+        if session == "premarket":
+            return self.PREMARKET_OPEN_MINUTE
+        if session == "afterhours" and close_minutes is not None:
+            close_minute = close_minutes.get(day)
+            if close_minute is not None and pd.notna(close_minute):
+                return int(close_minute)
+        return self.MARKET_OPEN_MINUTE
+
+    def _resample_block(self, source: pd.DataFrame, frequency: str, anchor_minute: int | None) -> pd.DataFrame:
         """Resample one already-NY-local-indexed block (a single trading session, or the
-        whole series for calendar alignment). ``anchor`` fixes sub-daily bins to 09:30."""
+        whole series for calendar alignment). ``anchor_minute`` (minutes past midnight),
+        when given, fixes sub-daily bins to that time-of-day instead of midnight."""
         kwargs: dict[str, Any] = {"rule": frequency, "label": "left", "closed": "left"}
-        if anchor:
-            # align bin edges to the fixed 09:30 session open, not midnight and not
+        if anchor_minute is not None:
+            # align bin edges to the fixed session-open anchor, not midnight and not
             # whatever the first available data point happens to be (an IPO, halt or a
             # query window starting later in the day must not shift the whole bucket
             # grid, e.g. to 10:00-11:00 -- buckets stay 09:30-10:30, 10:30-11:30, ...)
-            anchor_ts = pd.Timestamp("2000-01-03 09:30:00") # any date; only the time-of-day matters
+            anchor_ts = pd.Timestamp("2000-01-03") + pd.Timedelta(minutes=anchor_minute) # any date; only the time-of-day matters
             anchor_series = pd.Series(dtype="float64", index=pd.DatetimeIndex([anchor_ts]))
             anchor_edge_index = cast(pd.DatetimeIndex, anchor_series.resample(frequency, label="left").asfreq().index) # type: ignore[reportUnknownMemberType]
             kwargs["offset"] = anchor_ts - anchor_edge_index[0]
@@ -844,9 +939,11 @@ class DataAlpacaMarkets:
 
         return result.dropna(subset=["price_open", "price_high", "price_low", "price_close"])
 
-    def klines_resample(self, df: pd.DataFrame, interval: str, alignment: Alignment = "session") -> pd.DataFrame:
+    def klines_resample(self, df: pd.DataFrame, interval: str, alignment: Alignment = "session", session: Session = "all") -> pd.DataFrame:
         if alignment not in ("session", "calendar"):
             raise ValueError(f"Invalid 'alignment': must be one of 'session', 'calendar'. Got: '{alignment}'.")
+        if session not in ("all", "premarket", "regular", "afterhours"):
+            raise ValueError(f"Invalid 'session': must be one of 'all', 'premarket', 'regular', 'afterhours'. Got: '{session}'.")
         target_timedelta = self._interval_timedelta(interval)
         native_timedelta = self.get_interval_timedelta()
         # never fabricate finer data out of a coarser native source (e.g. native '1h'
@@ -895,13 +992,26 @@ class DataAlpacaMarkets:
             # target bucket) -- a Friday's last partial bar can never absorb Monday's
             # first bar, and an early-close day's last partial bar can never absorb data
             # from the following session, no matter how coarse the target interval is.
-            parts = [self._resample_block(day_df, frequency, anchor=True) for _, day_df in source.groupby(di.date)]
+            # Also group by sub-session (premarket/regular/afterhours) within each day,
+            # so a bucket never straddles the 09:30 open or the official close either.
+            calendar = self._get_calendar(f"{di.min():%Y-%m-%d}", f"{di.max():%Y-%m-%d}")
+            close_minutes = calendar["close_minute"]
+            close_minute_per_bar = close_minutes.reindex(di.date).to_numpy(dtype=float)
+            bar_open_minutes = di.hour * 60 + di.minute
+            segment_label = np.where(
+                bar_open_minutes < self.MARKET_OPEN_MINUTE, "premarket",
+                np.where(bar_open_minutes < close_minute_per_bar, "regular", "afterhours"),
+            )
+            parts = [
+                self._resample_block(segment_df, frequency, self._session_anchor_minute(day, cast("DataAlpacaMarkets.Session", label), close_minutes))
+                for (day, label), segment_df in source.groupby([di.date, segment_label])
+            ]
             result = pd.concat(parts) if parts else self._empty_df().set_index(pd.DatetimeIndex([], name="time"))
         else:
             # 'calendar' alignment, or a daily-or-coarser target under 'session' (where
             # the session/calendar distinction is moot -- both just group by NY-local
-            # trading day/week/month, with no 09:30 anchor to apply)
-            result = self._resample_block(source, frequency, anchor=False)
+            # trading day/week/month, with no anchor to apply)
+            result = self._resample_block(source, frequency, anchor_minute=None)
 
         # bin-open timestamps are currently NY wall-clock; convert back to the project's UTC storage convention
         rdi = cast(pd.DatetimeIndex, result.index)
