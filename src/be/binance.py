@@ -75,7 +75,8 @@ class DataBinanceVision:
     path             : str
     db_path          : str
     klinesrdy_path_f : str
-    
+
+    # TODO: evenly spaced index is ok for interval == "mo"
     # TODO: input validation
     # TODO: disabled symbols _ -> ~
     # TODO: rename file_type -> source
@@ -1141,6 +1142,8 @@ class Kliner():
             for symbol in self.symbols
         }
         self.on_timer_next_time = time.time()
+
+        assert "mo" not in [utils.get_letters(interval) for interval in self.intervals], "Error: interval 'mo' is currently not supported."
     
     def on_timer(self) -> None:
         t = time.time()
@@ -1151,7 +1154,7 @@ class Kliner():
     
     def klines_update(self, symbol: str, interval: str, bar_time: float) -> bool:
         klines = self.symbol_klines[symbol]
-        interval_seconds = pd.Timedelta(interval).total_seconds()
+        interval_seconds = utils.interval_to_timedelta("1m").total_seconds()
         history_bars = int(self.history_seconds / interval_seconds)
         while True:
             limit = int((bar_time - klines.iloc[-1].time * self.bah.time_factor) / interval_seconds - 1) if len(klines) else history_bars
@@ -1179,7 +1182,7 @@ class Kliner():
     
     def files_update(self, datetime: pd.Timestamp, bar_time: float) -> None:
         for interval in self.intervals:
-            if bar_time != datetime.floor(interval).timestamp():
+            if bar_time != datetime.floor(utils.interval_to_freq(interval)).timestamp():
                 continue
             failed_symbols : list[str] = []
             for symbol in self.interval_symbols[interval]:
@@ -1199,7 +1202,7 @@ class Kliner():
                     klines = klines.resample(utils.interval_to_freq(interval), label="left").agg(self.dbv.KLINES_AGGRULES) # type: ignore
                     if klines.iloc[-1].time * self.bah.time_factor == bar_time:
                         klines = klines[:-1] # drop open bar from lower interval agg (normally there is none)
-                    if klines.iloc[-1].time * self.bah.time_factor != bar_time - pd.Timedelta(interval).total_seconds():
+                    if klines.iloc[-1].time * self.bah.time_factor != bar_time - utils.interval_to_timedelta(interval).total_seconds():
                         failed_symbols.append(symbol)
                         continue
                     klines.to_csv(self.data_path_f.format(symbol=symbol, interval=interval), header=False, index=False)
@@ -1211,12 +1214,12 @@ class Kliner():
             print(f"Updated '{interval}' klines for {str(self.interval_symbols[interval])[1:-1]}.")
     
     def run(self) -> None:
-        last_bar_time = self.bah.get_binance_datetime().floor(self.intervals[0]).timestamp()
+        last_bar_time = self.bah.get_binance_datetime().floor(utils.interval_to_freq(self.intervals[0])).timestamp()
         while True:
             if self.platform_time.was_synced():
                 self.bah.set_timestamp_offset_seconds()
             datetime = self.bah.get_binance_datetime()
-            bar_time = datetime.floor(self.intervals[0]).timestamp()
+            bar_time = datetime.floor(utils.interval_to_freq(self.intervals[0])).timestamp()
             if bar_time == last_bar_time:
                 time.sleep(0.1)
                 self.timestamper.update(self.bah.get_binance_datetime())
