@@ -8,15 +8,22 @@ import typing as _typing
 
 from .ansi import Rainbow
 
-__all__ = ["PlatformTime", "Timestamper"]
+__all__ = ["PlatformTime", "PlatformTimeProtocol", "Timestamper"]
 
 # TODO: fix spaces
 
-PlatformTime = None
+class PlatformTimeProtocol(_typing.Protocol):
+    def was_synced(self, tries: int = 45*2, delay: int = 30) -> bool: ...
+
+class _UnsupportedPlatformTime(PlatformTimeProtocol):
+    def __init__(self) -> None:
+        raise NotImplementedError(f"No 'PlatformTime' implementation for '{_sys.platform}'.")
+
+PlatformTime : type[PlatformTimeProtocol] = _UnsupportedPlatformTime
 
 if _sys.platform == "win32":
     import winreg as _winreg
-    class WindowsTime():
+    class WindowsTime(PlatformTimeProtocol):
 
         SYNC_INTERVAL_REG_SUBKEY = r"SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\NtpClient"
         SYNC_INTERVAL_REG_NAME   =  "SpecialPollInterval"
@@ -66,7 +73,7 @@ if _sys.platform == "win32":
     
     PlatformTime = WindowsTime
 if _sys.platform == "linux":
-    class LinuxTime():
+    class LinuxTime(PlatformTimeProtocol):
 
         STEP_TOLERANCE_NS  = 1_000_000_000 # 1s, well above the drift of a slewing clock
         SYSTEMD_SYNC_PATHS = ("/run/systemd/timesync/synchronized", "/var/lib/systemd/timesync/clock")

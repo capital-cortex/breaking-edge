@@ -18,7 +18,7 @@ if "" in sys.path:
 from binance.client import Client # type: ignore
 
 from be import utils
-from be.time import PlatformTime, Timestamper
+from be.time import PlatformTime, PlatformTimeProtocol, Timestamper
 
 #%% Data Binance Vision
 load_dotenv()
@@ -1091,7 +1091,7 @@ class BinanceApiHelper():
 #%% Kliner
 class Kliner():
     
-    #platform_time   : PlatformTime
+    platform_time    : PlatformTimeProtocol
     timestamper      : Timestamper
     dbv              : DataBinanceVision
     bah              : BinanceApiHelper
