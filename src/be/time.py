@@ -8,9 +8,9 @@ import typing as _typing
 
 from .ansi import Rainbow
 
-__all__ = ["PlatformTime", "PlatformTimeProtocol", "Timestamper"]
+# TODO: use tenacity
 
-# TODO: fix spaces
+__all__ = ["PlatformTime", "PlatformTimeProtocol", "Timestamper"]
 
 class PlatformTimeProtocol(_typing.Protocol):
     def was_synced(self, tries: int = 45*2, delay: int = 30) -> bool: ...
@@ -24,13 +24,13 @@ PlatformTime : type[PlatformTimeProtocol] = _UnsupportedPlatformTime
 if _sys.platform == "win32":
     import winreg as _winreg
     class WindowsTime(PlatformTimeProtocol):
-
+        
         SYNC_INTERVAL_REG_SUBKEY = r"SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\NtpClient"
         SYNC_INTERVAL_REG_NAME   =  "SpecialPollInterval"
         SYNC_ITME_REG_SUBKEY     = r"SYSTEM\CurrentControlSet\Services\W32Time\Config"
         SYNC_TIME_REG_NAME       =  "LastKnownGoodTime"
         FILETIME_OFFSET_100NS    = 116444736000000000 # 1970-01-01 - 1601-01-01 in 100ns
-
+        
         def __init__(self) -> None:
             self.last_sync_time_ns = self.get_sync_time_ns(tries=1, delay=0)
             if self.get_sync_interval_s() > 86400:
@@ -63,7 +63,7 @@ if _sys.platform == "win32":
             if attempt > 1:
                 print(f"Succeeded querying windows time synchronisation on attempt {attempt}/{tries} :)")
             return sync_time_ns
-
+        
         def was_synced(self, tries: int = 45*2, delay: int = 30) -> bool:
             sync_time_ns = self.get_sync_time_ns(tries, delay)
             if sync_time_ns == self.last_sync_time_ns:
@@ -72,28 +72,29 @@ if _sys.platform == "win32":
             return True
     
     PlatformTime = WindowsTime
+
 if _sys.platform == "linux":
     class LinuxTime(PlatformTimeProtocol):
-
+        
         STEP_TOLERANCE_NS  = 1_000_000_000 # 1s, well above the drift of a slewing clock
         SYSTEMD_SYNC_PATHS = ("/run/systemd/timesync/synchronized", "/var/lib/systemd/timesync/clock")
         CHRONY_CMD         = ("chronyc", "tracking")
         CHRONY_REF_TIME_F  = r"Ref time \(UTC\)\s*:\s*(.+)"
         CHRONY_UNSYNCED_F  = r"unspecified|not synchronis"
         CHRONY_TIME_OUT_S  = 5
-
+        
         def __init__(self) -> None:
             self.last_sync_time_ns   = self.get_sync_time_ns(tries=1, delay=0)
             self.last_clock_delta_ns = self.get_clock_delta_ns()
             if self.last_sync_time_ns == 0:
                 print("Warning: No Linux time synchronisation source found (e.g. 'systemd-timesyncd' or 'chronyd').")
                 print("Consider running an NTP client (e.g. 'sudo timedatectl set-ntp true') to have the clock corrected regularly.")
-
+        
         @staticmethod
         def get_clock_delta_ns() -> int:
             # 'CLOCK_BOOTTIME' keeps running while suspended, so suspending is no clock step
             return _time.clock_gettime_ns(_time.CLOCK_REALTIME) - _time.clock_gettime_ns(_time.CLOCK_BOOTTIME)
-
+        
         @staticmethod
         def get_systemd_sync_time_ns() -> int:
             mtime_ns_list : list[int] = []
@@ -103,7 +104,7 @@ if _sys.platform == "linux":
                 except OSError:
                     continue
             return max(mtime_ns_list, default=0)
-
+        
         @staticmethod
         def get_chrony_sync_time_ns() -> int:
             try:
@@ -125,7 +126,7 @@ if _sys.platform == "linux":
             except ValueError:
                 return 0
             return int(ref_time.timestamp() * 1e9)
-
+        
         def get_sync_time_ns(self, tries: int = 45*2, delay: int = 30) -> int:
             attempt = 0
             sync_time_ns : int = 0
@@ -144,7 +145,7 @@ if _sys.platform == "linux":
             if attempt > 1:
                 print(f"Succeeded querying linux time synchronisation on attempt {attempt}/{tries} :)")
             return sync_time_ns
-
+        
         def was_synced(self, tries: int = 45*2, delay: int = 30) -> bool:
             clock_delta_ns = self.get_clock_delta_ns()
             was_stepped    = abs(clock_delta_ns - self.last_clock_delta_ns) > self.STEP_TOLERANCE_NS
@@ -154,13 +155,13 @@ if _sys.platform == "linux":
             self.last_sync_time_ns   = sync_time_ns
             self.last_clock_delta_ns = clock_delta_ns
             return True
-
+    
     PlatformTime = LinuxTime
 
 class Timestamper():
-
+    
     ANSI_ESCAPE = _re.compile(r'\x1b\[[0-9;]*[mGKH]')
-
+    
     def __init__(
             self                               ,
             format   : str        = "%F %T.%3f",
