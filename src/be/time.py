@@ -1,14 +1,15 @@
+import os as _os
 import re as _re
 import sys as _sys
 import time as _time
 import datetime as _datetime
+import subprocess as _subprocess
 import typing as _typing
 
 from .ansi import Rainbow
 
 __all__ = ["PlatformTime", "Timestamper"]
 
-# TODO: implement LinuxTime()
 # TODO: fix spaces
 
 PlatformTime = None
@@ -66,10 +67,87 @@ if _sys.platform == "win32":
     PlatformTime = WindowsTime
 if _sys.platform == "linux":
     class LinuxTime():
+
+        STEP_TOLERANCE_NS  = 1_000_000_000 # 1s, well above the drift of a slewing clock
+        SYSTEMD_SYNC_PATHS = ("/run/systemd/timesync/synchronized", "/var/lib/systemd/timesync/clock")
+        CHRONY_CMD         = ("chronyc", "tracking")
+        CHRONY_REF_TIME_F  = r"Ref time \(UTC\)\s*:\s*(.+)"
+        CHRONY_UNSYNCED_F  = r"unspecified|not synchronis"
+        CHRONY_TIME_OUT_S  = 5
+
         def __init__(self) -> None:
-            raise NotImplementedError()
-        def was_synced(self) -> bool:
-            raise NotImplementedError()
+            self.last_sync_time_ns   = self.get_sync_time_ns(tries=1, delay=0)
+            self.last_clock_delta_ns = self.get_clock_delta_ns()
+            if self.last_sync_time_ns == 0:
+                print("Warning: No Linux time synchronisation source found (e.g. 'systemd-timesyncd' or 'chronyd').")
+                print("Consider running an NTP client (e.g. 'sudo timedatectl set-ntp true') to have the clock corrected regularly.")
+
+        @staticmethod
+        def get_clock_delta_ns() -> int:
+            # 'CLOCK_BOOTTIME' keeps running while suspended, so suspending is no clock step
+            return _time.clock_gettime_ns(_time.CLOCK_REALTIME) - _time.clock_gettime_ns(_time.CLOCK_BOOTTIME)
+
+        @staticmethod
+        def get_systemd_sync_time_ns() -> int:
+            mtime_ns_list : list[int] = []
+            for path in LinuxTime.SYSTEMD_SYNC_PATHS:
+                try:
+                    mtime_ns_list.append(_os.stat(path).st_mtime_ns)
+                except OSError:
+                    continue
+            return max(mtime_ns_list, default=0)
+
+        @staticmethod
+        def get_chrony_sync_time_ns() -> int:
+            try:
+                tracking = _subprocess.run(
+                    LinuxTime.CHRONY_CMD,
+                    capture_output = True,
+                    text           = True,
+                    timeout        = LinuxTime.CHRONY_TIME_OUT_S,
+                ).stdout
+            except (OSError, _subprocess.SubprocessError):
+                return 0
+            if _re.search(LinuxTime.CHRONY_UNSYNCED_F, tracking, _re.IGNORECASE):
+                return 0
+            match = _re.search(LinuxTime.CHRONY_REF_TIME_F, tracking)
+            if match is None:
+                return 0
+            try:
+                ref_time = _datetime.datetime.strptime(match.group(1).strip(), "%a %b %d %H:%M:%S %Y").replace(tzinfo=_datetime.timezone.utc)
+            except ValueError:
+                return 0
+            return int(ref_time.timestamp() * 1e9)
+
+        def get_sync_time_ns(self, tries: int = 45*2, delay: int = 30) -> int:
+            attempt = 0
+            sync_time_ns : int = 0
+            for attempt in range(1, tries + 1):
+                try:
+                    sync_time_ns = max(self.get_systemd_sync_time_ns(), self.get_chrony_sync_time_ns())
+                    break
+                except Exception as e:
+                    print(f"An error occurred while querying linux time synchronisation on attempt {attempt}/{tries}:")
+                    print(e)
+                    if attempt < tries:
+                        _time.sleep(delay)
+                        continue
+                    print("Raising Exception. Goodbye :(")
+                    raise
+            if attempt > 1:
+                print(f"Succeeded querying linux time synchronisation on attempt {attempt}/{tries} :)")
+            return sync_time_ns
+
+        def was_synced(self, tries: int = 45*2, delay: int = 30) -> bool:
+            clock_delta_ns = self.get_clock_delta_ns()
+            was_stepped    = abs(clock_delta_ns - self.last_clock_delta_ns) > self.STEP_TOLERANCE_NS
+            sync_time_ns   = self.get_sync_time_ns(tries, delay)
+            if not was_stepped and sync_time_ns == self.last_sync_time_ns:
+                return False
+            self.last_sync_time_ns   = sync_time_ns
+            self.last_clock_delta_ns = clock_delta_ns
+            return True
+
     PlatformTime = LinuxTime
 
 class Timestamper():
