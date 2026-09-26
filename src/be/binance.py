@@ -78,7 +78,6 @@ class DataBinanceVision:
 
     # TODO: evenly spaced index is ok for interval == "mo"
     # TODO: input validation
-    # TODO: disabled symbols _ -> ~
     # TODO: rename file_type -> source
     # TODO: add resample_data(df, by) function
     # TODO: rename klines_resample() -> _resample_data_by_time()
@@ -141,7 +140,7 @@ class DataBinanceVision:
         head, tail = os.path.split(self.get_dir(""))
         symbol_dir = os.path.join(head, tail.replace(self.interval, ""))
         symbols = os.listdir(symbol_dir)
-        return [s for s in symbols if not s.startswith("_") and not s.startswith(".")]
+        return [s for s in symbols if s[0] not in "._~"]
     
     def get_klinesrdy_mtime(self) -> float:
         return os.path.getmtime(self.klinesrdy_path_f.format(interval=self.interval))
