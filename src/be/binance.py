@@ -76,14 +76,14 @@ class DataBinanceVision:
     db_path          : str
     klinesrdy_path_f : str
 
-    # TODO: evenly spaced index is ok for interval == "mo"
+    # TODO: unevenly spaced index is ok for interval == "mo"
     # TODO: input validation
     # TODO: rename file_type -> source
     # TODO: add resample_data(df, by) function
     # TODO: rename klines_resample() -> _resample_data_by_time()
     # TODO: rename klines_resample_volume_bars() -> _resample_data_by_volume()
     # TODO: rename get_data_klines_agg() -> get_data_agg(symbol, by)
-    # TODO: remove intern functions with _ (like _migrate_data_klines())
+    # TODO: make helper functions intern with _ (like _migrate_data_klines())
     # TODO: add db_only mode (delete zips)? Track downloaded data? Make get_symbols() work?
     def __init__(
             self,
@@ -1162,7 +1162,7 @@ class Kliner():
             try:
                 new_klines = self.bah.get_klines_df(symbol, interval, limit, start_time)
                 klines = pd.concat([klines, new_klines]) if len(klines) else new_klines
-                assert (klines.time.diff().dropna() * self.bah.time_factor == interval_seconds).all(), "Irregular time column in klines df."
+                assert (klines.time.diff().dropna() * self.bah.time_factor == interval_seconds).all(), "'time' column in klines df is not evenly spaced."
                 klines = klines[-history_bars:]
                 if klines.iloc[-1].time * self.bah.time_factor == bar_time - interval_seconds:
                     break
