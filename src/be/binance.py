@@ -78,7 +78,7 @@ class DataBinanceVision:
 
     # TODO: unevenly spaced index is ok for interval == "mo"
     # TODO: input validation
-    # TODO: rename file_type -> source
+    # TODO: rename file_type -> from
     # TODO: add resample_data(df, by) function
     # TODO: rename klines_resample() -> _resample_data_by_time()
     # TODO: rename klines_resample_volume_bars() -> _resample_data_by_volume()
@@ -521,11 +521,7 @@ class DataBinanceVision:
         timestamp_bgn_tmp = self.timestamp_bgn
         timestamp_end_tmp = self.timestamp_end
         any_data = False
-        progress = None if len(symbols) == 1 else tqdm(symbols, desc="Migrating symbols to duckdb")
-        enumerate_symbols = enumerate(progress) if progress else enumerate(symbols)
-        for i, symbol in enumerate_symbols:
-            if progress is not None:
-                progress.set_description(f"Migrating '{symbol}' to duckdb")
+        for i, symbol in enumerate(tqdm(symbols, desc="Migrating symbols to duckdb")):
             timestamp_bgn, timestamp_end = timestamps_bgn[i], timestamps_end[i]
             if timestamp_bgn == timestamp_end:
                 continue
