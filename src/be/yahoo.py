@@ -6,11 +6,6 @@ from typing import Literal
 
 class DataYahooFinance:
     
-    Intervals = Literal["1m" , "2m", "5m", "15m", "30m", "60m",
-                        "1h" ,
-                        "1d" , "5d",
-                        "1w" ,
-                        "1mo", "3mo", ""] # "90m" and "4h" will mess up time_close
     COLUMN_RENAMES = {
         "Open"   : "price_open" ,
         "High"   : "price_high" ,
@@ -26,13 +21,28 @@ class DataYahooFinance:
         "volume_abs"  : "sum"  ,
         "time_close"  : "last" ,
     }
+
+    interval      : Literal[
+        "1m" , "2m", "5m", "15m", "30m", "60m",
+        "1h" ,
+        "1d" , "5d",
+        "1w" ,
+        "1mo", "3mo", ""]
+    timestamp_bgn : str
+    timestamp_end : str
+    fill_closed   : bool
     
     def __init__(
-            self                                 ,
-            interval      : Intervals = "1d"     ,
-            timestamp_bgn : str       = "1970-01",
-            timestamp_end : str       = "2170-01",
-            fill_closed   : bool      = False    ,
+            self                                ,
+            interval      : Literal[
+                "1m" , "2m", "5m", "15m", "30m", "60m",
+                "1h" ,
+                "1d" , "5d",
+                "1w" ,
+                "1mo", "3mo", ""]    = "1d"     ,
+            timestamp_bgn : str      = "1970-01",
+            timestamp_end : str      = "2170-01",
+            fill_closed   : bool     = False    ,
     ) -> None:
         self.interval      = interval    
         self.timestamp_bgn = timestamp_bgn

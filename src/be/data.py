@@ -37,7 +37,7 @@ def get_data_klines_agg(
     )
     # resampling only from klines with less or equal interval and same unit (same trading hours)
     unit          = _ut.get_letters(interval)
-    dyf_intervals = _typing.get_args(dyf.Intervals)
+    dyf_intervals = _typing.get_args(DataYahooFinance.__annotations__["interval"])
     dyf_intervals = [di for di in dyf_intervals if _ut.get_letters(di) == unit]
     dyf.interval  = _ut.get_largest_interval_upto(interval, dyf_intervals)
     return dyf.get_data_klines_agg(symbol, interval)
