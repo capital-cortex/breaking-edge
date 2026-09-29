@@ -26,7 +26,8 @@ def get_data_klines_agg(
         if symbol in dbv.get_symbols():
             # resampling from klines with less or equal interval, regardless of unit (market always open)
             dbv_intervals = _os.listdir(dbv.get_dir(symbol))
-            dbv.interval  = _ut.get_largest_interval_upto(interval, dbv_intervals)
+            dbv_interval  = _ut.get_largest_interval_upto(interval, dbv_intervals)
+            dbv.interval  = _typing.cast(_typing.Any, dbv_interval)
             return dbv.get_data_klines_agg(symbol, interval)
     
     dyf = DataYahooFinance(
@@ -39,5 +40,6 @@ def get_data_klines_agg(
     unit          = _ut.get_letters(interval)
     dyf_intervals = _typing.get_args(DataYahooFinance.__annotations__["interval"])
     dyf_intervals = [di for di in dyf_intervals if _ut.get_letters(di) == unit]
-    dyf.interval  = _ut.get_largest_interval_upto(interval, dyf_intervals)
+    dyf_interval  = _ut.get_largest_interval_upto(interval, dyf_intervals)
+    dyf.interval  = _typing.cast(_typing.Any, dyf_interval)
     return dyf.get_data_klines_agg(symbol, interval)
