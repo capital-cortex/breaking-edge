@@ -51,18 +51,14 @@ def interval_to_dateoffset(interval: str) -> pd.DateOffset:
     value = get_numbers(interval)
     unit  = get_letters(interval)
     assert isinstance(value, int), "Interval value must be whole number."
-    if   unit == "m":
-        return pd.DateOffset(minutes = value)
-    elif unit == "h":
-        return pd.DateOffset(hours   = value)
-    elif unit == "d":
-        return pd.DateOffset(days    = value)
-    elif unit == "w":
-        return pd.DateOffset(weeks   = value)
-    elif unit == "mo":
-        return pd.DateOffset(months  = value)
-    else:
-        raise ValueError(f"Unsupported interval: {interval}")
+    match unit:
+        case "s" : return pd.DateOffset(seconds = value)
+        case "m" : return pd.DateOffset(minutes = value)
+        case "h" : return pd.DateOffset(hours   = value)
+        case "d" : return pd.DateOffset(days    = value)
+        case "w" : return pd.DateOffset(weeks   = value)
+        case "mo": return pd.DateOffset(months  = value)
+        case  _  : raise ValueError(f"Unsupported interval: {interval}")
 
 def get_sorted_intervals(intervals: list[str], reverse: bool = False) -> list[str]:
     timedeltas = [interval_to_timedelta(itvl) for itvl in intervals]
