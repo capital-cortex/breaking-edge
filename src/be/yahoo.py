@@ -99,5 +99,5 @@ class DataYahooFinance:
             return resampled_df
         resampled_df = resampled_df.dropna()
         if not subdaily:
-            resampled_df["time_close"] = pd.Timestamp(resampled_df.time_close).ceil("1D") # type: ignore
+            resampled_df["time_close"] = resampled_df.time_close.dt.ceil("1D")
         return resampled_df
