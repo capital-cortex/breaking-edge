@@ -1149,7 +1149,7 @@ class Kliner():
     
     def klines_update(self, symbol: str, interval: str, bar_time: float) -> bool:
         klines = self.symbol_klines[symbol]
-        interval_seconds = utils.interval_to_timedelta("1m").total_seconds()
+        interval_seconds = utils.interval_to_timedelta(interval).total_seconds()
         history_bars = int(self.history_seconds / interval_seconds)
         while True:
             limit = int((bar_time - klines.iloc[-1].time * self.bah.time_factor) / interval_seconds - 1) if len(klines) else history_bars
