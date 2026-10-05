@@ -13,7 +13,7 @@ from .ansi import Rainbow
 __all__ = ["PlatformTime", "PlatformTimeProtocol", "Timestamper"]
 
 class PlatformTimeProtocol(_typing.Protocol):
-    def was_synced(self, tries: int = 45*2, delay: int = 30) -> bool: ...
+    def was_synced(self, attempts: int = 45*2, delay: int = 30) -> bool: ...
 
 class _UnsupportedPlatformTime(PlatformTimeProtocol):
     def __init__(self) -> None:
@@ -32,7 +32,7 @@ if _sys.platform == "win32":
         FILETIME_OFFSET_100NS    = 116444736000000000 # 1970-01-01 - 1601-01-01 in 100ns
         
         def __init__(self) -> None:
-            self.last_sync_time_ns = self.get_sync_time_ns(tries=1, delay=0)
+            self.last_sync_time_ns = self.get_sync_time_ns(attempts=1, delay=0)
             if self.get_sync_interval_s() > 86400:
                 print("Warning: Windows time synchronisation interval is greater than '24h'.")
                 print("Consider setting it to a lower value like 0x1000 for better synchronisation (system reboot required).")
@@ -43,29 +43,29 @@ if _sys.platform == "win32":
                 value, _ = _winreg.QueryValueEx(key, self.SYNC_INTERVAL_REG_NAME)
                 return value
         
-        def get_sync_time_ns(self, tries: int = 45*2, delay: int = 30) -> int: # TODO: tries -> attempts
+        def get_sync_time_ns(self, attempts: int = 45*2, delay: int = 30) -> int:
             attempt = 0
             sync_time_ns : int = -1
-            for attempt in range(1, tries + 1):
+            for attempt in range(1, attempts + 1):
                 try:
                     with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, self.SYNC_ITME_REG_SUBKEY) as key:
                         value, _ = _winreg.QueryValueEx(key, self.SYNC_TIME_REG_NAME)
                         sync_time_ns = (value - self.FILETIME_OFFSET_100NS) * 100
                         break
                 except Exception as e:
-                    print(f"An error occurred while querying windows time synchronisation on attempt {attempt}/{tries}:")
+                    print(f"An error occurred while querying windows time synchronisation on attempt {attempt}/{attempts}:")
                     print(e)
-                    if attempt < tries:
+                    if attempt < attempts:
                         _time.sleep(delay)
                         continue
                     print("Raising Exception. Goodbye :(")
                     raise
             if attempt > 1:
-                print(f"Succeeded querying windows time synchronisation on attempt {attempt}/{tries} :)")
+                print(f"Succeeded querying windows time synchronisation on attempt {attempt}/{attempts} :)")
             return sync_time_ns
         
-        def was_synced(self, tries: int = 45*2, delay: int = 30) -> bool:
-            sync_time_ns = self.get_sync_time_ns(tries, delay)
+        def was_synced(self, attempts: int = 45*2, delay: int = 30) -> bool:
+            sync_time_ns = self.get_sync_time_ns(attempts, delay)
             if sync_time_ns == self.last_sync_time_ns:
                 return False
             self.last_sync_time_ns = sync_time_ns
@@ -84,7 +84,7 @@ if _sys.platform == "linux":
         CHRONY_TIME_OUT_S  = 5
         
         def __init__(self) -> None:
-            self.last_sync_time_ns   = self.get_sync_time_ns(tries=1, delay=0)
+            self.last_sync_time_ns   = self.get_sync_time_ns(attempts=1, delay=0)
             self.last_clock_delta_ns = self.get_clock_delta_ns()
             if self.last_sync_time_ns == 0:
                 print("Warning: No Linux time synchronisation source found (e.g. 'systemd-timesyncd' or 'chronyd').")
@@ -127,29 +127,29 @@ if _sys.platform == "linux":
                 return 0
             return int(ref_time.timestamp() * 1e9)
         
-        def get_sync_time_ns(self, tries: int = 45*2, delay: int = 30) -> int:
+        def get_sync_time_ns(self, attempts: int = 45*2, delay: int = 30) -> int:
             attempt = 0
             sync_time_ns : int = 0
-            for attempt in range(1, tries + 1):
+            for attempt in range(1, attempts + 1):
                 try:
                     sync_time_ns = max(self.get_systemd_sync_time_ns(), self.get_chrony_sync_time_ns())
                     break
                 except Exception as e:
-                    print(f"An error occurred while querying linux time synchronisation on attempt {attempt}/{tries}:")
+                    print(f"An error occurred while querying linux time synchronisation on attempt {attempt}/{attempts}:")
                     print(e)
-                    if attempt < tries:
+                    if attempt < attempts:
                         _time.sleep(delay)
                         continue
                     print("Raising Exception. Goodbye :(")
                     raise
             if attempt > 1:
-                print(f"Succeeded querying linux time synchronisation on attempt {attempt}/{tries} :)")
+                print(f"Succeeded querying linux time synchronisation on attempt {attempt}/{attempts} :)")
             return sync_time_ns
         
-        def was_synced(self, tries: int = 45*2, delay: int = 30) -> bool:
+        def was_synced(self, attempts: int = 45*2, delay: int = 30) -> bool:
             clock_delta_ns = self.get_clock_delta_ns()
             was_stepped    = abs(clock_delta_ns - self.last_clock_delta_ns) > self.STEP_TOLERANCE_NS
-            sync_time_ns   = self.get_sync_time_ns(tries, delay)
+            sync_time_ns   = self.get_sync_time_ns(attempts, delay)
             if not was_stepped and sync_time_ns == self.last_sync_time_ns:
                 return False
             self.last_sync_time_ns   = sync_time_ns
