@@ -73,7 +73,7 @@ if _sys.platform == "win32":
     
     PlatformTime = WindowsTime
 
-if _sys.platform == "linux":
+elif _sys.platform == "linux":
     class LinuxTime(PlatformTimeProtocol):
         
         STEP_TOLERANCE_NS  = 1_000_000_000 # 1s, well above the drift of a slewing clock
