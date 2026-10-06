@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from zipfile import ZipFile
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from typing import Callable, Literal, Any
 
@@ -21,7 +21,6 @@ from be import utils
 from be.time import PlatformTime, PlatformTimeProtocol, Timestamper
 
 #%% Data Binance Vision
-load_dotenv()
 class DataBinanceVision:
     URL_F                   = "https://data.binance.vision/data/{market_type}/{futures_type}/{period}/{data_type}/{symbol}/{interval}/{symbol}-{specifier}-{date}.zip"
     BOOKDEPTH_TIMESTAMP_MIN = "2023-01-01"
@@ -79,6 +78,7 @@ class DataBinanceVision:
     # TODO: unevenly spaced index is ok for interval == "mo"
     # TODO: input validation
     # TODO: rename file_type -> from
+    # TODO: data_binance_vision.duckdb -> data.duckdb
     # TODO: add resample_data(df, by) function
     # TODO: rename klines_resample() -> _resample_data_by_time()
     # TODO: rename klines_resample_volume_bars() -> _resample_data_by_volume()
@@ -108,10 +108,23 @@ class DataBinanceVision:
         self.interval      = interval    
         self.timestamp_bgn = timestamp_bgn
         self.timestamp_end = timestamp_end
-        self.path = os.getenv("be_dbv") or ""
-        assert self.path, "Environment variable 'be_dbv' does not exist."
+        self.path             = self.get_path_from_env()
         self.db_path          = os.path.join(self.path, "data_binance_vision.duckdb")
         self.klinesrdy_path_f = os.path.join(self.path, "spot", "live", "klines", self.KLINESRDY_FILENAME_F)
+    
+    @staticmethod
+    def get_path_from_env() -> str:
+        ENV = ".env"
+        KEY = "be_dbv"
+        load_dotenv(ENV)
+        path = os.getenv(KEY)
+        if path is not None:
+            return path
+        print("Environment variable 'be_dbv' does not exist.")
+        path = input("Enter a path for DataBinanceVision:")
+        path = os.path.normpath(path).strip("\"'")
+        set_key(ENV, KEY, path)
+        return path
     
     def get_url(self, symbol: str, date: str) -> str:
         specifier = self.interval if self.data_type == "klines" else self.data_type
