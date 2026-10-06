@@ -12,7 +12,7 @@ from hyperliquid.utils.signing import OrderType # type: ignore
 from hyperliquid.utils         import constants # type: ignore
 from hyperliquid.info          import Info      # type: ignore
 
-from typing import TypedDict, List, Literal, Any, get_args
+from typing import TypedDict, List, Literal, Any, get_args, cast
 
 from .ansi import Rainbow
 
@@ -561,7 +561,7 @@ class HyperliquidFillsLogger(HyperliquidLogger):
                 print(str(row)[1:-1])
                 f.write(f"{line}\n")
                 self.df.loc[len(self.df), self.COLUMNS] = [
-                    n if pd.notna(n := pd.to_numeric(v, errors="coerce")) else v for v in row # type: ignore
+                    n if pd.notna(n := cast(Any, pd.to_numeric(v, errors="coerce"))) else v for v in row
                 ]
         return True
     
@@ -597,7 +597,7 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
                     print(str(row)[1:-1])
                 f.write(f"{line}\n")
                 self.df.loc[len(self.df), self.COLUMNS] = [
-                    n if pd.notna(n := pd.to_numeric(v, errors="coerce")) else v for v in row # type: ignore
+                    n if pd.notna(n := cast(Any, pd.to_numeric(v, errors="coerce"))) else v for v in row
                 ]
         if not verbose:
             print(f"... ({len(new_fundings)}) ...")
