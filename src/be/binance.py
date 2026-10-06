@@ -121,7 +121,7 @@ class DataBinanceVision:
         if path is not None:
             return path
         print("Environment variable 'be_dbv' does not exist.")
-        path = input("Enter a path for DataBinanceVision:")
+        path = input("Enter a path for DataBinanceVision: ")
         path = os.path.normpath(path).strip("\"'")
         set_key(ENV, KEY, path)
         return path
