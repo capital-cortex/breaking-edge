@@ -1,7 +1,14 @@
 import time
+import requests
 import numpy as np
 import pandas as pd
 from typing import cast
+
+def send_heartbeat(url: str) -> None:
+    try:
+        requests.get(url)
+    except Exception as e:
+        print(f"Failed to send heartbeat: {e}")
 
 def invert_symbol(df: pd.DataFrame) -> pd.DataFrame:
     buy_cols = [col for col in df.columns if "_buy" in col]

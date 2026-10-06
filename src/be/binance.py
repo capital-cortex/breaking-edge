@@ -1120,6 +1120,7 @@ class Kliner():
             interval_symbols : dict[str, list[str]],
             history_seconds  : float               ,
             timer_seconds    : float               ,
+            heartbeat_url    : str | None = None   ,
             log_path         : str | None = None   ,
     ) -> None:
         self.platform_time = PlatformTime()
@@ -1131,6 +1132,7 @@ class Kliner():
         self.interval_symbols = interval_symbols
         self.history_seconds  = history_seconds
         self.timer_seconds    = timer_seconds
+        self.heartbeat_url    = heartbeat_url
         self.intervals = utils.get_sorted_intervals(list(self.interval_symbols.keys()))
         self.symbols   = list({symbol for interval in self.intervals for symbol in self.interval_symbols[interval]})
         self.symbol_intervals = {
@@ -1159,6 +1161,8 @@ class Kliner():
         if t < self.on_timer_next_time:
             return
         self.bah.set_timestamp_offset_seconds()
+        if self.heartbeat_url is not None:
+            utils.send_heartbeat(self.heartbeat_url)
         self.on_timer_next_time = t + self.timer_seconds
     
     def klines_update(self, symbol: str, interval: str, bar_time: float) -> bool:
