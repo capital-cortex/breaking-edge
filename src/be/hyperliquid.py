@@ -537,7 +537,7 @@ class HyperliquidLogger():
     def create(self, log_path: str, overwrite: bool = False) -> bool:
         if os.path.exists(log_path) and not overwrite:
             return False
-        print("Creating new log file.")
+        print(f"Creating new log file: '{log_path}'")
         with open(log_path, "w") as f:
             line = ",".join(c for c in self.COLUMNS)
             f.write(f"{line}\n")
