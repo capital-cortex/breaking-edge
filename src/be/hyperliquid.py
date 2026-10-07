@@ -561,7 +561,8 @@ class HyperliquidFillsLogger(HyperliquidLogger):
                 print(str(row)[1:-1])
                 f.write(f"{line}\n")
                 self.df.loc[len(self.df), self.COLUMNS] = [
-                    n if pd.notna(n := cast(Any, pd.to_numeric(v, errors="coerce"))) else v for v in row
+                    n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
+                    for v in row
                 ]
         return True
     
@@ -597,7 +598,8 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
                     print(str(row)[1:-1])
                 f.write(f"{line}\n")
                 self.df.loc[len(self.df), self.COLUMNS] = [
-                    n if pd.notna(n := cast(Any, pd.to_numeric(v, errors="coerce"))) else v for v in row
+                    n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
+                    for v in row
                 ]
         if not verbose:
             print(f"... ({len(new_fundings)}) ...")
