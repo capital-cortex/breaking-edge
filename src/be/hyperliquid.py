@@ -287,7 +287,7 @@ class HyperliquidApiHelper():
         return order_result
     
     def position_market_close(
-            self                                                  ,
+            self                                               ,
             coin     : str                                     ,
             sz       : float | None = None                     ,
             px       : float | None = None                     ,
