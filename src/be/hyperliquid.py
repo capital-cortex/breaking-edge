@@ -146,6 +146,7 @@ class PortfolioHistory(TypedDict):
 
 class HyperliquidApiHelper():
     
+    DECIMALS_SIG  = 5
     DECIMALS_PERP = 6
     DECIMALS_SPOT = 8
     
@@ -241,7 +242,7 @@ class HyperliquidApiHelper():
         decimals_max = self.DECIMALS_PERP if is_perp else self.DECIMALS_SPOT
         decimals_max = decimals_max - sz_decimals
         exponent = int(np.floor(np.log10(px)))
-        decimals_sig = 5 - (exponent + 1) # exponent + 1 for digits
+        decimals_sig = self.DECIMALS_SIG - (exponent + 1) # exponent + 1 for digits
         decimals_sig = max(0, decimals_sig)
         decimals = min(decimals_max, decimals_sig)
         return round(px, decimals) if decimals else int(0.5 + px)
@@ -537,7 +538,7 @@ class HyperliquidLogger():
     def create(self, log_path: str, overwrite: bool = False) -> bool:
         if os.path.exists(log_path) and not overwrite:
             return False
-        print(f"Creating new log file: '{log_path}'")
+        print(f"Creating new log file: '{os.path.basename(log_path)}'")
         with open(log_path, "w") as f:
             line = ",".join(c for c in self.COLUMNS)
             f.write(f"{line}\n")
