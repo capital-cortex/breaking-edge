@@ -1151,7 +1151,6 @@ class Kliner():
             for symbol in self.symbols
         }
         self.on_timer_next_time = time.time()
-
         assert "mo" not in [utils.get_letters(interval) for interval in self.intervals], "Error: interval 'mo' is currently not supported."
     
     def on_timer(self) -> None:
@@ -1237,6 +1236,5 @@ class Kliner():
                 self.on_timer()
                 continue
             last_bar_time = bar_time
-            
             self.timestamper.update(self.bah.get_binance_datetime())
             self.files_update(datetime, bar_time)
