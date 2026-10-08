@@ -1142,8 +1142,7 @@ class Kliner():
             for interval in self.symbol_intervals[symbol]:
                 data_path = self.data_path_f.format(symbol=symbol, interval=interval)
                 data_dir  = os.path.dirname(self.data_path_f.format(symbol=symbol, interval=interval))
-                if not os.path.exists(data_dir):
-                    os.makedirs(data_dir)
+                os.makedirs(data_dir, exist_ok=True)
         self.symbol_klines = {
             symbol: 
                 pd.read_csv(data_path, names=DataBinanceVision.KLINES_COLUMNS)
