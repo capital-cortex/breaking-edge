@@ -6,9 +6,14 @@ from typing import cast
 
 def send_heartbeat(url: str) -> None:
     try:
-        requests.get(url)
+        response = requests.get(url)
     except Exception as e:
-        print(f"Failed to send heartbeat: {e}")
+        print("Failed request to send heartbeat:")
+        print(e)
+        return
+    if not response.ok:
+        print("Failed to send heartbeat:")
+        print(response.text)
 
 def invert_symbol(df: pd.DataFrame) -> pd.DataFrame:
     buy_cols = [col for col in df.columns if "_buy" in col]
