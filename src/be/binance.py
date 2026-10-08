@@ -1098,7 +1098,6 @@ class BinanceApiHelper():
             f.write(f"{line}\n")
 
 #%% Kliner
-# TODO: work with on_timer_prev_time
 class Kliner():
     
     platform_time    : PlatformTimeProtocol
