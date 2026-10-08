@@ -1098,6 +1098,7 @@ class BinanceApiHelper():
             f.write(f"{line}\n")
 
 #%% Kliner
+# TODO: work with on_timer_prev_time
 class Kliner():
     
     platform_time    : PlatformTimeProtocol
@@ -1150,17 +1151,20 @@ class Kliner():
                 else pd.DataFrame(columns=DataBinanceVision.KLINES_COLUMNS)
             for symbol in self.symbols
         }
-        self.on_timer_next_time = time.time()
+        self.on_timer_prev_time = time.time() - self.timer_seconds
         assert "mo" not in [utils.get_letters(interval) for interval in self.intervals], "Error: interval 'mo' is currently not supported."
     
-    def on_timer(self) -> None:
+    def on_tick(self) -> None:
         t = time.time()
-        if t < self.on_timer_next_time:
+        if t < self.on_timer_prev_time + self.timer_seconds:
             return
+        self.on_timer()
+        self.on_timer_prev_time = t
+    
+    def on_timer(self) -> None:
         self.bah.set_timestamp_offset_seconds()
         if self.heartbeat_url is not None:
             utils.send_heartbeat(self.heartbeat_url)
-        self.on_timer_next_time = t + self.timer_seconds
     
     def klines_update(self, symbol: str, interval: str, bar_time: float) -> bool:
         klines = self.symbol_klines[symbol]
@@ -1233,7 +1237,7 @@ class Kliner():
             if bar_time == last_bar_time:
                 time.sleep(0.1)
                 self.timestamper.update(self.bah.get_binance_datetime())
-                self.on_timer()
+                self.on_tick()
                 continue
             last_bar_time = bar_time
             self.timestamper.update(self.bah.get_binance_datetime())
