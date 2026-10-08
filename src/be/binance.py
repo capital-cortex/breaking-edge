@@ -151,8 +151,7 @@ class DataBinanceVision:
         return os.path.dirname(self.get_path(symbol, ""))
     
     def get_symbols(self) -> list[str]:
-        head, tail = os.path.split(self.get_dir(""))
-        symbol_dir = os.path.join(head, tail.replace(self.interval, ""))
+        symbol_dir = self.get_dir("") if self.data_type != "klines" else os.path.dirname(self.get_dir(""))
         symbols = os.listdir(symbol_dir)
         return [s for s in symbols if s[0] not in "._~"]
     
