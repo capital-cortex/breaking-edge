@@ -393,12 +393,11 @@ class HyperliquidApiHelper():
             for position in open_positions:
                 posi = position["position"]
                 lvrg = min(leverage, posi["maxLeverage"])
-                coin = posi["coin"]
                 if posi["leverage"]["value"] == lvrg:
                     continue
-                set_cnt += _update_leverage(lvrg, coin)
+                set_cnt += _update_leverage(lvrg, posi["coin"])
         except Exception as e:
-            print(f"Failed to set leverage to {leverage} {f"for '{coin}'" if coin else ""}:")
+            print(f"Failed to set leverage to {leverage}{f" for '{coin}'" if coin is not None else ""}:")
             print(e)
             return None
         return set_cnt
