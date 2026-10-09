@@ -219,7 +219,7 @@ class HyperliquidApiHelper():
             self.open_orders = self.info_open_orders(self.address)
             return True
         except Exception as e:
-            print("Failed to update: user state, open orders:")
+            print("Failed to update user state & open orders:")
             print(e)
             self.user_state  = None
             self.open_orders = None
