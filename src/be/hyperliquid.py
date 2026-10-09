@@ -185,7 +185,7 @@ class HyperliquidApiHelper():
                 print("Retrying in 60 seconds.")
                 time.sleep(60)
     
-    # Pylance type: ignore Functions:
+    # Pylance "type: ignore" Functions:
     def info_user_state(self, address: str, dex: str = "") -> UserState:
         return self.info.user_state(address, dex) # type: ignore
     def info_open_orders(self, address: str, dex: str = "") -> list[OpenOrder]:

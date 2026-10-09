@@ -605,7 +605,7 @@ class BinanceApiHelper():
                 print("Retrying in 60 seconds.")
                 time.sleep(60)
     
-    # Pylance type: ignore Functions
+    # Pylance "type: ignore" Functions
     def client_get_exchange_info(self) -> dict[str, Any]:
         return self.client.get_exchange_info() # type: ignore
     def client_get_server_time(self) -> int:
