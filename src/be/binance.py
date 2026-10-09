@@ -1162,9 +1162,9 @@ class Kliner():
         self.on_timer_prev_time = t
     
     def on_timer(self) -> None:
-        self.bah.set_timestamp_offset_seconds()
         if self.heartbeat_url is not None:
             utils.send_heartbeat(self.heartbeat_url)
+        self.bah.set_timestamp_offset_seconds()
     
     def klines_update(self, symbol: str, interval: str, bar_time: float) -> bool:
         klines = self.symbol_klines[symbol]
