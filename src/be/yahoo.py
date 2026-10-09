@@ -92,7 +92,7 @@ class DataYahooFinance:
             offset = df.index[0] - df[:1].resample(utils.interval_to_freq(interval), label="left").asfreq().index[0]
         else:
             offset = None
-        resampled_df = df.resample(utils.interval_to_freq(interval), label="left", offset=offset).agg(self.COLUMN_AGGRULES) # type: ignore
+        resampled_df = df.resample(utils.interval_to_freq(interval), label="left", offset=offset).agg(self.COLUMN_AGGRULES)
         if self.fill_closed:
             resampled_df = utils.fillna(df)
             resampled_df["time_close"] = resampled_df.index + utils.interval_to_dateoffset(self.interval)

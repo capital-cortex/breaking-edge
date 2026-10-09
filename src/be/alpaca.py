@@ -563,7 +563,7 @@ class DataAlpacaMarkets:
             raise AlpacaDataError("Alpaca bars contain duplicate timestamps.")
 
         numeric_columns = ["o", "h", "l", "c", "v", "n", "vw"]
-        df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors="coerce") # type: ignore[reportUnknownMemberType]
+        df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors="coerce")
         if df[numeric_columns].isna().to_numpy().any():
             raise AlpacaDataError("Alpaca bars contain invalid numeric values.")
         if (
@@ -627,7 +627,7 @@ class DataAlpacaMarkets:
             raise AlpacaDataError("Kline data contains duplicate timestamps.")
 
         numeric_columns = ["price_open", "price_high", "price_low", "price_close", "volume_abs", "trades", "vwap"]
-        numeric = df[numeric_columns].apply(pd.to_numeric, errors="coerce") # type: ignore[reportUnknownMemberType]
+        numeric = df[numeric_columns].apply(pd.to_numeric, errors="coerce")
         if numeric.isna().to_numpy().any():
             raise AlpacaDataError("Kline data contains invalid/non-numeric values.")
         if (
@@ -927,14 +927,14 @@ class DataAlpacaMarkets:
             # grid, e.g. to 10:00-11:00 -- buckets stay 09:30-10:30, 10:30-11:30, ...)
             anchor_ts = pd.Timestamp("2000-01-03") + pd.Timedelta(minutes=anchor_minute) # any date; only the time-of-day matters
             anchor_series = pd.Series(dtype="float64", index=pd.DatetimeIndex([anchor_ts]))
-            anchor_edge_index = cast(pd.DatetimeIndex, anchor_series.resample(frequency, label="left").asfreq().index) # type: ignore[reportUnknownMemberType]
+            anchor_edge_index = cast(pd.DatetimeIndex, anchor_series.resample(frequency, label="left").asfreq().index)
             kwargs["offset"] = anchor_ts - anchor_edge_index[0]
-        result: pd.DataFrame = source.resample(**kwargs).agg(self.KLINES_CLEAN_AGGRULES) # type: ignore[reportUnknownMemberType,reportUnknownVariableType,reportCallIssue]
+        result: pd.DataFrame = source.resample(**kwargs).agg(self.KLINES_CLEAN_AGGRULES)
 
         valid_vwap_volume = source["volume_abs"].where(source["vwap"].notna())
         weighted_vwap = source["vwap"] * valid_vwap_volume
-        vwap_numerator: pd.Series = weighted_vwap.resample(**kwargs).sum(min_count=1) # type: ignore[reportUnknownMemberType]
-        vwap_denominator: pd.Series = valid_vwap_volume.resample(**kwargs).sum(min_count=1) # type: ignore[reportUnknownMemberType]
+        vwap_numerator: pd.Series = weighted_vwap.resample(**kwargs).sum(min_count=1)
+        vwap_denominator: pd.Series = valid_vwap_volume.resample(**kwargs).sum(min_count=1)
         result["vwap"] = vwap_numerator / vwap_denominator
 
         return result.dropna(subset=["price_open", "price_high", "price_low", "price_close"])

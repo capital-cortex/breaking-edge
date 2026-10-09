@@ -406,7 +406,7 @@ class DataBinanceVision:
         return self.klines_resample(df, interval)
     
     def klines_resample(self, df: pd.DataFrame, interval: str) -> pd.DataFrame:
-        return df.resample(utils.interval_to_freq(interval), label="left").agg(self.KLINES_CLEAN_AGGRULES) # type: ignore
+        return df.resample(utils.interval_to_freq(interval), label="left").agg(self.KLINES_CLEAN_AGGRULES)
     
     def get_data_klines_vbars(self, symbol: str, volume_threshold: float, drop_last: bool = True) -> pd.DataFrame:
         df = self.get_data_klines(symbol)
@@ -769,7 +769,7 @@ class BinanceApiHelper():
             
             progress = min(newest_time - trade_time, newest_time - oldest_time) * self.time_factor
             progress_bar.n = round(progress, 1)
-            progress_bar.refresh() # type: ignore
+            progress_bar.refresh()
         
         # load forwards
         trade_id = trade_df.index[-1] + 1
@@ -1213,7 +1213,7 @@ class Kliner():
                         failed_symbols.append(symbol)
                         continue
                     klines.index = pd.to_datetime(klines.time * self.bah.time_factor, unit="s")
-                    klines = klines.resample(utils.interval_to_freq(interval), label="left").agg(self.dbv.KLINES_AGGRULES) # type: ignore
+                    klines = klines.resample(utils.interval_to_freq(interval), label="left").agg(self.dbv.KLINES_AGGRULES)
                     if klines.iloc[-1].time * self.bah.time_factor == bar_time:
                         klines = klines[:-1] # drop open bar from lower interval agg (normally there is none)
                     if klines.iloc[-1].time * self.bah.time_factor != bar_time - utils.interval_to_timedelta(interval).total_seconds():
