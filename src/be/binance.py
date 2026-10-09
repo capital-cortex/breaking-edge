@@ -1100,19 +1100,20 @@ class BinanceApiHelper():
 #%% Kliner
 class Kliner():
     
-    platform_time    : PlatformTimeProtocol
-    timestamper      : Timestamper
-    dbv              : DataBinanceVision
-    bah              : BinanceApiHelper
-    data_path_f      : str
-    interval_symbols : dict[str, list[str]]
-    history_seconds  : float
-    timer_seconds    : float
-    log_path         : str
-    intervals        : list[str]
-    symbols          : list[str]
-    symbol_intervals : dict[str, list[str]]
-    symbol_klines    : dict[str, pd.DataFrame]
+    platform_time     : PlatformTimeProtocol
+    timestamper       : Timestamper
+    dbv               : DataBinanceVision
+    bah               : BinanceApiHelper
+    data_path_f       : str
+    interval_symbols  : dict[str, list[str]]
+    history_seconds   : float
+    timer_seconds     : float
+    heartbeat_url     : str | None
+    intervals         : list[str]
+    symbols           : list[str]
+    symbol_intervals  : dict[str, list[str]]
+    symbol_klines     : dict[str, pd.DataFrame]
+    on_timer_prev_time: float
     
     def __init__(
             self                                   ,
