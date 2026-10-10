@@ -182,7 +182,7 @@ class HyperliquidApiHelper():
             except Exception as e:
                 print("Failed to initialize HyperliquidApiHelper:")
                 print(e)
-                print("Retrying in 60 seconds.")
+                print("Retrying in 60 seconds...")
                 time.sleep(60)
     
     # Pylance "type: ignore" Functions:

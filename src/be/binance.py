@@ -602,7 +602,7 @@ class BinanceApiHelper():
             except Exception as e:
                 print("An error occurred while initializing BinanceApiHelper:")
                 print(e)
-                print("Retrying in 60 seconds.")
+                print("Retrying in 60 seconds...")
                 time.sleep(60)
     
     # Pylance "type: ignore" Functions
@@ -641,11 +641,11 @@ class BinanceApiHelper():
     
     # Binance Klines Data Handlers
     @retry( # ~2:30 min if all tries fail
-            wait         = wait_exponential(multiplier=1, min=2, max=30),
-            stop         = stop_after_attempt(10)                       ,
-            retry        = retry_if_exception_type(Exception)           ,
-            reraise      = True                                         ,
-            before_sleep = lambda s: print(f"Retrying ({s.attempt_number}/9)...")                           ,
+            wait         = wait_exponential(multiplier=1, min=2, max=30)          ,
+            stop         = stop_after_attempt(10)                                 ,
+            retry        = retry_if_exception_type(Exception)                     ,
+            reraise      = True                                                   ,
+            before_sleep = lambda s: print(f"Retrying ({s.attempt_number}/9) ..."),
     )
     def get_klines_df(
             self                               ,
