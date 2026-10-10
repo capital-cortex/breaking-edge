@@ -96,6 +96,17 @@ def get_time_factor(t: float | int) -> float:
 def hide_secret(text: str, secret: str, replace: str = "*") -> str:
     return text.replace(secret, replace * len(secret))
 
+def send_notification(url: str, message: str, headers: dict[str, str]) -> None:
+    try:
+        response = requests.post(url, message, headers=headers)
+    except Exception as e:
+        print(f"Failed request to send notification:")
+        print(hide_secret(str(e), url.split("/")[-1]))
+        return
+    if not response.ok:
+        print("Failed to send notification:")
+        print(hide_secret(response.text, url.split("/")[-1]))
+
 def send_heartbeat(url: str) -> None:
     try:
         response = requests.get(url)
