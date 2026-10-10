@@ -600,7 +600,7 @@ class BinanceApiHelper():
                 assert self.set_timestamp_offset_seconds()
                 break
             except Exception as e:
-                print("An error occurred while initializing BinanceApiHelper:")
+                print("Failed to initialize BinanceApiHelper:")
                 print(e)
                 print("Retrying in 60 seconds...")
                 time.sleep(60)
@@ -714,7 +714,7 @@ class BinanceApiHelper():
                 assert valid_data, "Corrupted data received from Binance API"
                 break
             except Exception as e:
-                print(f"An error occurred while fetching historical trades on attempt {attempt}/{tries}:")
+                print(f"Failed to fetch historical trades on attempt {attempt}/{tries}:")
                 print(e)
                 if attempt < tries:
                     time.sleep(delay)  # Wait before retrying
@@ -722,7 +722,7 @@ class BinanceApiHelper():
                 print("Raising Exception. Goodbye :(")
                 raise  # Re-raise if all tries fail
         if attempt > 1:
-            print(f"Succeeded fetching historical trades on attempt {attempt}/{tries} :)")
+            print(f"Succeeded to fetch historical trades on attempt {attempt}/{tries} :)")
         return trades
     
     def preload_trades(
@@ -989,7 +989,7 @@ class BinanceApiHelper():
         try:
             entry_order = self.create_entry_order(symbol, side, qty_asset_str, qty_usd_str, recv_window)
         except Exception as e:
-            print("An error occurred while placing the entry order:")
+            print("Failed to place the entry order:")
             print(e)
             return None
         
@@ -1000,15 +1000,15 @@ class BinanceApiHelper():
         try:
             exit_oco_order = self.create_exit_order(symbol, reverse_side, executed_qty_asset_str, sl_price, tp_price, recv_window)
         except Exception as e:
-            print("An error occurred while placing the exit order:")
+            print("Failed to place the exit order:")
             print(e)
             for attempt in range(1, revert_tries + 1):
                 try:
                     self.create_unentry_order(symbol, reverse_side, executed_qty_asset_str, recv_window)
-                    print("Reverted entry order")
+                    print("Succeeded to revert entry order")
                     return None
                 except Exception as e:
-                    print(f"An error occurred while reverting the entry on attempt {attempt}/{revert_tries}:")
+                    print(f"Failed to revert the entry on attempt {attempt}/{revert_tries}:")
                     print(e)
                     if attempt < revert_tries:
                         time.sleep(delay)
@@ -1044,7 +1044,7 @@ class BinanceApiHelper():
                 )
                 break
             except Exception as e:
-                print(f"An error occurred while fetching order on attempt {attempt}/{tries}:")
+                print(f"Failed to fetch order on attempt {attempt}/{tries}:")
                 print(e)
                 if attempt < tries:
                     time.sleep(delay)  # Wait before retrying
@@ -1052,7 +1052,7 @@ class BinanceApiHelper():
                     print("Raising Exception. Goodbye :(")
                     raise  # Re-raise if all tries fail
         if attempt > 1:
-            print(f"Succeeded fetching order on attempt {attempt}/{tries} :)")
+            print(f"Succeeded to fetch order on attempt {attempt}/{tries} :)")
         return order
     
     def get_account_balance(self, asset: str, recv_window: int = RECV_WINDOW) -> dict[str, float]:

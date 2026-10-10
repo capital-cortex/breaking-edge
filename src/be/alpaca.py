@@ -1092,9 +1092,9 @@ class AlpacaApiHelper():
                 self.clock   = self.client_get_clock()
                 break
             except Exception as e:
-                print("An error occurred while initializing AlpacaApiHelper:")
+                print("Failed to initialize AlpacaApiHelper:")
                 print(e)
-                print("Retrying in 60 seconds.")
+                print("Retrying in 60 seconds...")
                 time.sleep(60)
 
     def _headers(self) -> dict[str, str]:
@@ -1230,7 +1230,7 @@ class AlpacaApiHelper():
         try:
             return self.create_bracket_order(symbol, side, qty_asset_str, sl_price, tp_price)
         except Exception as e:
-            print("An error occurred while placing the bracket order:")
+            print("Failed to place the bracket order:")
             print(e)
             return None
 
@@ -1253,7 +1253,7 @@ class AlpacaApiHelper():
                 order = self.client_get_order(order_id)
                 break
             except Exception as e:
-                print(f"An error occurred while fetching order on attempt {attempt}/{tries}:")
+                print(f"Failed to fetch order on attempt {attempt}/{tries}:")
                 print(e)
                 if attempt < tries:
                     time.sleep(delay)
@@ -1261,7 +1261,7 @@ class AlpacaApiHelper():
                     print("Raising Exception. Goodbye :(")
                     raise
         if attempt > 1:
-            print(f"Succeeded fetching order on attempt {attempt}/{tries} :)")
+            print(f"Succeeded to fetch order on attempt {attempt}/{tries} :)")
         assert order is not None
         return order
 

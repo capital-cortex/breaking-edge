@@ -53,7 +53,7 @@ if _sys.platform == "win32":
                         sync_time_ns = (value - self.FILETIME_OFFSET_100NS) * 100
                         break
                 except Exception as e:
-                    print(f"An error occurred while querying windows time synchronisation on attempt {attempt}/{attempts}:")
+                    print(f"Failed to query windows time synchronisation on attempt {attempt}/{attempts}:")
                     print(e)
                     if attempt < attempts:
                         _time.sleep(delay)
@@ -61,7 +61,7 @@ if _sys.platform == "win32":
                     print("Raising Exception. Goodbye :(")
                     raise
             if attempt > 1:
-                print(f"Succeeded querying windows time synchronisation on attempt {attempt}/{attempts} :)")
+                print(f"Succeeded to query windows time synchronisation on attempt {attempt}/{attempts} :)")
             return sync_time_ns
         
         def was_synced(self, attempts: int = 45*2, delay: int = 30) -> bool:
@@ -135,7 +135,7 @@ elif _sys.platform == "linux":
                     sync_time_ns = max(self.get_systemd_sync_time_ns(), self.get_chrony_sync_time_ns())
                     break
                 except Exception as e:
-                    print(f"An error occurred while querying linux time synchronisation on attempt {attempt}/{attempts}:")
+                    print(f"Failed to query linux time synchronisation on attempt {attempt}/{attempts}:")
                     print(e)
                     if attempt < attempts:
                         _time.sleep(delay)
@@ -143,7 +143,7 @@ elif _sys.platform == "linux":
                     print("Raising Exception. Goodbye :(")
                     raise
             if attempt > 1:
-                print(f"Succeeded querying linux time synchronisation on attempt {attempt}/{attempts} :)")
+                print(f"Succeeded to query linux time synchronisation on attempt {attempt}/{attempts} :)")
             return sync_time_ns
         
         def was_synced(self, attempts: int = 45*2, delay: int = 30) -> bool:
