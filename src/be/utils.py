@@ -4,17 +4,6 @@ import numpy as np
 import pandas as pd
 from typing import cast
 
-def send_heartbeat(url: str) -> None:
-    try:
-        response = requests.get(url)
-    except Exception as e:
-        print("Failed request to send heartbeat:")
-        print(e)
-        return
-    if not response.ok:
-        print("Failed to send heartbeat:")
-        print(response.text)
-
 def invert_symbol(df: pd.DataFrame) -> pd.DataFrame:
     buy_cols = [col for col in df.columns if "_buy" in col]
     bid_cols = [col for col in df.columns if "_bid" in col]
@@ -103,3 +92,17 @@ def get_time_factor(t: float | int) -> float:
     differences = [(abs(current_time - t * factor), factor) for factor in unit_factors]
     _, time_factor = min(differences, key=lambda x: x[0])
     return time_factor
+
+def hide_secret(text: str, secret: str, replace: str = "*") -> str:
+    return text.replace(secret, replace * len(secret))
+
+def send_heartbeat(url: str) -> None:
+    try:
+        response = requests.get(url)
+    except Exception as e:
+        print("Failed request to send heartbeat:")
+        print(hide_secret(str(e), url.split("/")[-1]))
+        return
+    if not response.ok:
+        print("Failed to send heartbeat:")
+        print(hide_secret(response.text, url.split("/")[-1]))
