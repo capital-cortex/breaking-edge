@@ -8,7 +8,7 @@ import typing as _typing
 
 from .ansi import Rainbow
 
-# TODO: use tenacity
+# TODO: use tenacity (in all places where attempts are made)
 
 __all__ = ["PlatformTime", "PlatformTimeProtocol", "Timestamper"]
 
@@ -17,9 +17,13 @@ class PlatformTimeProtocol(_typing.Protocol):
 
 class _UnsupportedPlatformTime(PlatformTimeProtocol):
     def __init__(self) -> None:
-        raise NotImplementedError(f"No 'PlatformTime' implementation for '{_sys.platform}'.")
+        print(f"No 'PlatformTime' implementation for '{_sys.platform}'.")
+        print("The method 'was_synced()' will always return False.")
+    
+    def was_synced(self, attempts: int = 45*2, delay: int = 30) -> bool:
+        return False
 
-PlatformTime : type[PlatformTimeProtocol] = _UnsupportedPlatformTime
+PlatformTime = _UnsupportedPlatformTime
 
 if _sys.platform == "win32":
     import winreg as _winreg
