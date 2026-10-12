@@ -1132,7 +1132,7 @@ class Kliner():
         self.dbv = DataBinanceVision(period="live", interval="")
         self.bah = BinanceApiHelper()
         self.data_path_f = os.path.join(self.dbv.get_dir("{symbol}"), "{interval}", DataBinanceVision.KLINES_LIVE_FILENAME_F)
-        self.interval_symbols = interval_symbols
+        self.interval_symbols = {itvl: interval_symbols[itvl] for itvl in utils.get_sorted_intervals([*interval_symbols.keys()])}
         self.history_seconds  = history_seconds
         self.timer_seconds    = timer_seconds
         self.heartbeat_url    = heartbeat_url
