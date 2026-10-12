@@ -156,7 +156,10 @@ class DataBinanceVision:
         return [s for s in symbols if s[0] not in "._~"]
     
     def get_klinesrdy_mtime(self) -> float:
-        return os.path.getmtime(self.klinesrdy_path_f.format(interval=self.interval))
+        try:
+            return os.path.getmtime(self.klinesrdy_path_f.format(interval=self.interval))
+        except:
+            return np.nan
     
     @staticmethod
     def _clean_zip(full_path: str) -> None:
