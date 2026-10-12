@@ -156,7 +156,7 @@ def visualize_probs(
 
 def visualize_evaluation(
         prices          : pd.Series | pd.DataFrame            ,
-        strategy        : pd.Series                           ,
+        strategy        : pd.Series | None          =     None,
         fee_pct         : float                     =      0.1, # %/(one-way)
         swap_long_ppa   : float                     =     22.0, # %/a
         swap_short_ppa  : float                     =     12.0, # %/a
@@ -392,7 +392,7 @@ def _evaluate_strategy_core(
 
 def evaluate_strategy(
         prices          : pd.Series | pd.DataFrame            ,
-        strategy        : pd.Series                           ,
+        strategy        : pd.Series | None          =     None,
         fee_pct         : float                     =      0.1, # %/(one-way)
         swap_long_ppa   : float                     =     22.0, # %/a
         swap_short_ppa  : float                     =     12.0, # %/a
@@ -407,6 +407,10 @@ def evaluate_strategy(
     Evaluates a trading strategy with position sizing, fees, swaps, and SL/TP logic.
     Node: SL alwaays has priority over TP if both are hit in the same bar.
     """
+    if strategy is None:
+        assert isinstance(prices, pd.DataFrame), "Invalid arg: 'prices' must be DataFrame if 'strategy' is not provided."
+        assert "strategy" in prices, "Invalid arg: 'prices' must contain 'strategy' column if not provided with args."
+        strategy = prices.strategy
     assert (prices.index == strategy.index).all(), "Invalid data: Prices and strategy must have the same index."
     if isinstance(prices, pd.DataFrame):
         assert "price_close" in prices.columns, "Invalid arg: 'prices' must be Series or DataFrame and contain 'price_close' column."
