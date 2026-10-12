@@ -159,7 +159,7 @@ class DataBinanceVision:
         try:
             return os.path.getmtime(self.klinesrdy_path_f.format(interval=self.interval))
         except:
-            return np.nan
+            return -1.0
     
     @staticmethod
     def _clean_zip(full_path: str) -> None:
