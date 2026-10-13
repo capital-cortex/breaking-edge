@@ -62,18 +62,19 @@ class DataBinanceVision:
     TIMESTAMP_MIN           = "1970-01"
     TIMESTAMP_MAX           = "2170-01"
     
-    market_type      : Literal["futures"  , "spot"             ]
-    futures_type     : Literal["um"       , "cm"     ,""       ]
-    period           : Literal["daily"    , "monthly", "live"  ]
-    data_type        : Literal["bookDepth", "klines" , "trades"]
-    interval         : Literal["1s", "1m", "3m", "5m", "15m", "30m",
-                               "1h", "2h", "4h", "6h",  "8h", "12h",
-                               "1d", "3d", "1w", "1mo", ""     ]
-    timestamp_bgn    : str
-    timestamp_end    : str
-    path             : str
-    db_path          : str
-    klinesrdy_path_f : str
+    market_type       : Literal["futures"  , "spot"             ]
+    futures_type      : Literal["um"       , "cm"     ,""       ]
+    period            : Literal["daily"    , "monthly", "live"  ]
+    data_type         : Literal["bookDepth", "klines" , "trades"]
+    interval          : Literal["1s", "1m", "3m", "5m", "15m", "30m",
+                                "1h", "2h", "4h", "6h",  "8h", "12h",
+                                "1d", "3d", "1w", "1mo", ""     ]
+    timestamp_bgn     : str
+    timestamp_end     : str
+    path              : str
+    db_path           : str
+    klinesrdy_path_f  : str
+    datardy_prev_mtime: float
 
     # TODO: unevenly spaced index is ok for interval == "mo"
     # TODO: input validation
@@ -108,9 +109,10 @@ class DataBinanceVision:
         self.interval      = interval    
         self.timestamp_bgn = timestamp_bgn
         self.timestamp_end = timestamp_end
-        self.path             = self.get_path_from_env()
-        self.db_path          = os.path.join(self.path, "data_binance_vision.duckdb")
-        self.klinesrdy_path_f = os.path.join(self.path, "spot", "live", "klines", self.KLINESRDY_FILENAME_F)
+        self.path               = self.get_path_from_env()
+        self.db_path            = os.path.join(self.path, "data_binance_vision.duckdb")
+        self.klinesrdy_path_f   = os.path.join(self.path, "spot", "live", "klines", self.KLINESRDY_FILENAME_F)
+        self.datardy_prev_mtime = self.get_datardy_mtime()
     
     @staticmethod
     def get_path_from_env() -> str:
@@ -155,11 +157,22 @@ class DataBinanceVision:
         symbols = os.listdir(symbol_dir)
         return [s for s in symbols if s[0] not in "._~"]
     
-    def get_klinesrdy_mtime(self) -> float:
+    def datardy(self) -> bool:
+        mtime = self.get_datardy_mtime()
+        ready = mtime != self.datardy_prev_mtime
+        self.datardy_prev_mtime = mtime
+        return ready
+    
+    def get_datardy_mtime(self) -> float:
         try:
-            return os.path.getmtime(self.klinesrdy_path_f.format(interval=self.interval))
-        except:
+            match self.data_type:
+                case "klines": return self._get_klinesrdy_mtime()
+                case _       : raise NotImplementedError()
+        except FileNotFoundError:
             return -1.0
+    
+    def _get_klinesrdy_mtime(self) -> float:
+        return os.path.getmtime(self.klinesrdy_path_f.format(interval=self.interval))
     
     @staticmethod
     def _clean_zip(full_path: str) -> None:
