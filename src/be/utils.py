@@ -105,7 +105,7 @@ def send_notification(url: str, message: str, headers: dict[str, str]) -> None:
         return
     if not response.ok:
         print("Failed to send notification:")
-        print(hide_secret(response.text, url.split("/")[-1]))
+        print(hide_secret(response.text.strip(), url.split("/")[-1]))
 
 def send_heartbeat(url: str) -> None:
     try:
@@ -116,4 +116,4 @@ def send_heartbeat(url: str) -> None:
         return
     if not response.ok:
         print("Failed to send heartbeat:")
-        print(hide_secret(response.text, url.split("/")[-1]))
+        print(hide_secret(response.text.strip(), url.split("/")[-1]))
