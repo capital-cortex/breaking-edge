@@ -158,20 +158,20 @@ class HyperliquidApiHelper():
     open_orders : list[OpenOrder] | None
     
     def __init__(
-            self                                                          ,
-            private_key     : str                                         ,
-            account_address : str       | None = None                     ,
-            base_url        : str              = constants.MAINNET_API_URL,
-            skip_ws         : bool             = True                     ,
-            perp_dexs       : list[str] | None = None                     ,
+            self                                                        ,
+            private_key   : str                                         ,
+            agent_address : str       | None = None                     ,
+            base_url      : str              = constants.MAINNET_API_URL,
+            skip_ws       : bool             = True                     ,
+            perp_dexs     : list[str] | None = None                     ,
     ) -> None:
-        account = Account.from_key(private_key)
-        address = account_address or account.address
-        print(f"Running with account address.")
-        if address != account.address:
+        self.account = Account.from_key(private_key)
+        if agent_address is None:
+            self.address = self.account.address
+            print(f"Running with account address.")
+        else:
+            self.address = agent_address
             print(f"Running with agent address.")
-        self.eth_account = account
-        self.address     = address
         while True:
             try:
                 self.info        = Info(base_url, skip_ws, perp_dexs=perp_dexs)
