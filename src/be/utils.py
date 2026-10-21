@@ -96,7 +96,7 @@ def get_time_factor(t: float | int) -> float:
 def hide_secret(text: str, secret: str, replace: str = "*") -> str:
     return text.replace(secret, replace * len(secret))
 
-def send_notification(url: str, message: str, headers: dict[str, str]) -> None:
+def send_notification(url: str, message: str, headers: dict[str, str] = {}) -> None:
     try:
         response = requests.post(url, message, headers=headers)
     except Exception as e:
