@@ -145,7 +145,6 @@ class PortfolioHistory(TypedDict):
     vlm                 : str
 
 class HyperliquidApiHelper():
-    
     DECIMALS_SIG  = 5
     DECIMALS_PERP = 6
     DECIMALS_SPOT = 8
@@ -524,7 +523,6 @@ class HyperliquidApiHelper():
         return df
 
 class HyperliquidLogger():
-
     COLUMNS : list[str]
     path    : str
     df      : pd.DataFrame
@@ -547,7 +545,6 @@ class HyperliquidLogger():
         return int(self.df.iloc[-1].time) if len(self.df) else -1
 
 class HyperliquidFillsLogger(HyperliquidLogger):
-    
     COLUMNS = [*Fill.__annotations__]
     
     def update(self, new_fills: list[Fill]) -> bool:
@@ -581,7 +578,6 @@ class HyperliquidFillsLogger(HyperliquidLogger):
         return df_agg
 
 class HyperliquidFundingsLogger(HyperliquidLogger):
-    
     COLUMNS = [*[*UserFunding.__annotations__][:-1], *Delta.__annotations__]
     
     def update(self, new_fundings: list[UserFunding], verbose : bool = False) -> bool:

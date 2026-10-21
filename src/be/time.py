@@ -28,7 +28,6 @@ PlatformTime = _UnsupportedPlatformTime
 if _sys.platform == "win32":
     import winreg as _winreg
     class WindowsTime(PlatformTimeProtocol):
-        
         SYNC_INTERVAL_REG_SUBKEY = r"SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\NtpClient"
         SYNC_INTERVAL_REG_NAME   =  "SpecialPollInterval"
         SYNC_ITME_REG_SUBKEY     = r"SYSTEM\CurrentControlSet\Services\W32Time\Config"
@@ -79,7 +78,6 @@ if _sys.platform == "win32":
 
 elif _sys.platform == "linux":
     class LinuxTime(PlatformTimeProtocol):
-        
         STEP_TOLERANCE_NS  = 1_000_000_000 # 1s, well above the drift of a slewing clock
         SYSTEMD_SYNC_PATHS = ("/run/systemd/timesync/synchronized", "/var/lib/systemd/timesync/clock")
         CHRONY_CMD         = ("chronyc", "tracking")
@@ -163,7 +161,6 @@ elif _sys.platform == "linux":
     PlatformTime = LinuxTime
 
 class Timestamper():
-    
     ANSI_ESCAPE = _re.compile(r'\x1b\[[0-9;]*[mGKH]')
     
     def __init__(

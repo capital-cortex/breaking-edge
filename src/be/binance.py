@@ -586,7 +586,6 @@ class DataBinanceVision:
 
 #%% Binance Api Helper
 class BinanceApiHelper():
-    
     API_LIMIT     =  1000   # trades, klines
     REQUEST_FREQ  =     3.0 # Hz
     RECV_WINDOW   = 60000   # in ms
@@ -1115,7 +1114,6 @@ class BinanceApiHelper():
 
 #%% Kliner
 class Kliner():
-    
     platform_time     : PlatformTimeProtocol
     timestamper       : Timestamper
     dbv               : DataBinanceVision

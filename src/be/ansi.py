@@ -2,7 +2,6 @@ import re as _re
 import typing as _typing
 
 class Rainbow():
-    
     BLACK         = (0x00, 0x00, 0x00)
     RED           = (0xFF, 0x00, 0x00)
     YELLOW        = (0xFF, 0xFF, 0x00)

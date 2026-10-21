@@ -5,7 +5,6 @@ from . import utils
 from typing import Literal
 
 class DataYahooFinance:
-    
     COLUMN_RENAMES = {
         "Open"   : "price_open" ,
         "High"   : "price_high" ,
