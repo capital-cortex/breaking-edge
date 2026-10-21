@@ -164,9 +164,9 @@ class HyperliquidApiHelper():
             skip_ws       : bool             = True                     ,
             perp_dexs     : list[str] | None = None                     ,
     ) -> None:
-        self.account = Account.from_key(private_key)
+        self.eth_account = Account.from_key(private_key)
         if agent_address is None:
-            self.address = self.account.address
+            self.address = self.eth_account.address
             print(f"Running with account address.")
         else:
             self.address = agent_address
