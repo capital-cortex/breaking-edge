@@ -26,7 +26,7 @@ class DataYahooFinance:
         "1h" ,
         "1d" , "5d",
         "1w" ,
-        "1mo", "3mo", ""]
+        "1mo", "3mo"] | str
     timestamp_bgn : str
     timestamp_end : str
     fill_closed   : bool
@@ -38,7 +38,7 @@ class DataYahooFinance:
                 "1h" ,
                 "1d" , "5d",
                 "1w" ,
-                "1mo", "3mo", ""]    = "1d"     ,
+                "1mo", "3mo"] | str  = "1d"     ,
             timestamp_bgn : str      = "1970-01",
             timestamp_end : str      = "2170-01",
             fill_closed   : bool     = False    ,
