@@ -1211,7 +1211,8 @@ class Kliner():
         self.symbol_klines[symbol] = klines
         return True
     
-    def files_update(self, datetime: pd.Timestamp, bar_time: float) -> None:
+    def on_bar(self, datetime: pd.Timestamp, bar_time: float) -> None:
+        # update files
         self.timestamper.update(self.bah.get_binance_datetime())
         for interval in self.intervals:
             if bar_time != datetime.floor(utils.interval_to_freq(interval)).timestamp():
@@ -1251,6 +1252,6 @@ class Kliner():
             datetime = self.bah.get_binance_datetime()
             bar_time = datetime.floor(utils.interval_to_freq(self.intervals[0])).timestamp()
             if bar_time != last_bar_time:
-                self.files_update(datetime, bar_time)
+                self.on_bar(datetime, bar_time)
                 last_bar_time = bar_time
             self.on_tick()
