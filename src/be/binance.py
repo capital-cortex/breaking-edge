@@ -1167,7 +1167,11 @@ class Kliner():
         self.on_timer_prev_time = time.time() - self.timer_seconds
         assert "mo" not in [utils.get_letters(interval) for interval in self.intervals], "Error: interval 'mo' is currently not supported."
     
-    def on_tick(self) -> None:
+    def on_tick(self, delay: float = 0.1) -> None:
+        time.sleep(delay)
+        if self.platform_time.was_synced():
+            self.bah.set_timestamp_offset_seconds()
+        self.timestamper.update(self.bah.get_binance_datetime())
         t = time.time()
         if t < self.on_timer_prev_time + self.timer_seconds:
             return
@@ -1208,6 +1212,7 @@ class Kliner():
         return True
     
     def files_update(self, datetime: pd.Timestamp, bar_time: float) -> None:
+        self.timestamper.update(self.bah.get_binance_datetime())
         for interval in self.intervals:
             if bar_time != datetime.floor(utils.interval_to_freq(interval)).timestamp():
                 continue
@@ -1243,15 +1248,9 @@ class Kliner():
     def run(self) -> None:
         last_bar_time = self.bah.get_binance_datetime().floor(utils.interval_to_freq(self.intervals[0])).timestamp()
         while True:
-            if self.platform_time.was_synced():
-                self.bah.set_timestamp_offset_seconds()
             datetime = self.bah.get_binance_datetime()
             bar_time = datetime.floor(utils.interval_to_freq(self.intervals[0])).timestamp()
-            if bar_time == last_bar_time:
-                time.sleep(0.1)
-                self.timestamper.update(self.bah.get_binance_datetime())
-                self.on_tick()
-                continue
-            last_bar_time = bar_time
-            self.timestamper.update(self.bah.get_binance_datetime())
-            self.files_update(datetime, bar_time)
+            if bar_time != last_bar_time:
+                self.files_update(datetime, bar_time)
+                last_bar_time = bar_time
+            self.on_tick()
