@@ -1165,6 +1165,7 @@ class Kliner():
             for symbol in self.symbols
         }
         self.on_timer_prev_time = time.time() - self.timer_seconds
+        self.on_bar_prev_time   = self.bah.get_binance_datetime().floor(utils.interval_to_freq(self.intervals[0])).timestamp()
         assert "mo" not in [utils.get_letters(interval) for interval in self.intervals], "Error: interval 'mo' is currently not supported."
     
     def on_tick(self, delay: float = 0.1) -> None:
@@ -1247,11 +1248,10 @@ class Kliner():
             print(f"Updated '{interval}' klines for {str(self.interval_symbols[interval])[1:-1]}.")
     
     def run(self) -> None:
-        last_bar_time = self.bah.get_binance_datetime().floor(utils.interval_to_freq(self.intervals[0])).timestamp()
         while True:
             datetime = self.bah.get_binance_datetime()
             bar_time = datetime.floor(utils.interval_to_freq(self.intervals[0])).timestamp()
-            if bar_time != last_bar_time:
+            if bar_time != self.on_bar_prev_time:
                 self.on_bar(datetime, bar_time)
-                last_bar_time = bar_time
+                self.on_bar_prev_time = bar_time
             self.on_tick()
