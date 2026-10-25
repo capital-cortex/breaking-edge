@@ -2,7 +2,7 @@ import time
 import requests
 import numpy as np
 import pandas as pd
-from typing import cast
+from typing import Any, cast
 
 def invert_symbol(df: pd.DataFrame) -> pd.DataFrame:
     buy_cols = [col for col in df.columns if "_buy" in col]
@@ -96,16 +96,27 @@ def get_time_factor(t: float | int) -> float:
 def hide_secret(text: str, secret: str, replace: str = "*") -> str:
     return text.replace(secret, replace * len(secret))
 
-def send_notification(url: str, message: str, headers: dict[str, str] = {}) -> None:
+def send_notification(
+        url     : str       ,
+        data    : Any = None,
+        json    : Any = None,
+        **kwargs: Any       ,
+) -> bool:
+    """
+    tries to call `requests.post(url, data, json, **kwargs)`,
+    returns `True` if succeeded, hides slug in error print
+    """
     try:
-        response = requests.post(url, message, headers=headers)
+        response = requests.post(url, data, json, **kwargs)
     except Exception as e:
         print(f"Failed request to send notification:")
         print(hide_secret(str(e), url.split("/")[-1]))
-        return
+        return False
     if not response.ok:
         print("Failed to send notification:")
         print(hide_secret(response.text.strip(), url.split("/")[-1]))
+        return False
+    return True
 
 def send_heartbeat(url: str) -> None:
     try:
