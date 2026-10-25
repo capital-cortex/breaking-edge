@@ -103,7 +103,7 @@ def send_notification(
         **kwargs: Any       ,
 ) -> bool:
     """
-    tries to call `requests.post(url, data, json, **kwargs)`,
+    Tries to call `requests.post(url, data, json, **kwargs)`,
     returns `True` if succeeded, hides slug in error print
     """
     try:
