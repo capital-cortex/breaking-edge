@@ -118,13 +118,15 @@ def send_notification(
         return False
     return True
 
-def send_heartbeat(url: str) -> None:
+def send_heartbeat(url: str) -> bool:
     try:
         response = requests.get(url)
     except Exception as e:
         print("Failed request to send heartbeat:")
         print(hide_secret(str(e), url.split("/")[-1]))
-        return
+        return False
     if not response.ok:
         print("Failed to send heartbeat:")
         print(hide_secret(response.text.strip(), url.split("/")[-1]))
+        return False
+    return True
