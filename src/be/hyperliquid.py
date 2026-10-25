@@ -13,6 +13,7 @@ from hyperliquid.utils         import constants # type: ignore
 from hyperliquid.info          import Info      # type: ignore
 
 from typing import TypedDict, List, Literal, Any, get_args, cast
+from abc import ABC
 
 from .ansi import Rainbow
 
@@ -522,7 +523,7 @@ class HyperliquidApiHelper():
         df = df.drop(columns="time").astype(float)
         return df
 
-class HyperliquidLogger():
+class HyperliquidLogger(ABC):
     COLUMNS : list[str]
     path    : str | None
     df      : pd.DataFrame
