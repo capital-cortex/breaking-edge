@@ -524,15 +524,17 @@ class HyperliquidApiHelper():
 
 class HyperliquidLogger():
     COLUMNS : list[str]
-    path    : str
+    path    : str | None
     df      : pd.DataFrame
     
-    def __init__(self, log_path: str) -> None:
+    def __init__(self, log_path: str | None = None) -> None:
         self.create(log_path, overwrite=False)
         self.path = log_path
-        self.df   = pd.read_csv(log_path)
+        self.df   = pd.read_csv(log_path) if log_path else pd.DataFrame(columns=self.COLUMNS)
     
-    def create(self, log_path: str, overwrite: bool = False) -> bool:
+    def create(self, log_path: str | None, overwrite: bool = False) -> bool:
+        if not log_path:
+            return False
         if os.path.exists(log_path) and not overwrite:
             return False
         print(f"Creating new log file: '{os.path.basename(log_path)}'")
@@ -550,6 +552,12 @@ class HyperliquidFillsLogger(HyperliquidLogger):
     def update(self, new_fills: list[Fill]) -> bool:
         if len(new_fills) == 0:
             return False
+        self.df.loc[len(self.df), self.COLUMNS] = [
+            n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
+            for row in new_fills for v in row
+        ]
+        if not self.path:
+            return True
         print("Logging new user fills:")
         with open(self.path, "a") as f:
             for fill in new_fills:
@@ -557,10 +565,6 @@ class HyperliquidFillsLogger(HyperliquidLogger):
                 line = ",".join(str(v) for v in row)
                 print(str(row)[1:-1])
                 f.write(f"{line}\n")
-                self.df.loc[len(self.df), self.COLUMNS] = [
-                    n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
-                    for v in row
-                ]
         return True
     
     def get_df_agg(self, round_decimals: int = 6) -> pd.DataFrame:
@@ -583,6 +587,12 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
     def update(self, new_fundings: list[UserFunding], verbose : bool = False) -> bool:
         if len(new_fundings) == 0:
             return False
+        self.df.loc[len(self.df), self.COLUMNS] = [
+            n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
+            for row in new_fundings for v in row
+        ]
+        if not self.path:
+            return True
         print("Logging new user fundings:")
         funding_usdc = 0.0
         with open(self.path, "a") as f:
@@ -593,10 +603,6 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
                 if verbose:
                     print(str(row)[1:-1])
                 f.write(f"{line}\n")
-                self.df.loc[len(self.df), self.COLUMNS] = [
-                    n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
-                    for v in row
-                ]
         if not verbose:
             print(f"... ({len(new_fundings)}) ...")
         sys.stdout.write("Funding total: " + Rainbow.paint_value(f"{funding_usdc:.2f}") + " $.\n")
