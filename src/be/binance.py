@@ -1208,7 +1208,7 @@ class Kliner():
         self.on_timer_prev_time = t
     
     def on_timer(self) -> None:
-        if self.heartbeat_url is not None:
+        if self.heartbeat_url:
             utils.send_heartbeat(self.heartbeat_url)
         self.bah.set_timestamp_offset_seconds()
     

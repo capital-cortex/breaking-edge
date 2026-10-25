@@ -200,7 +200,7 @@ class Timestamper():
         if not "\n" in self.buffer:
             return
         *lines, self.buffer = self.buffer.split("\n")
-        if self.log_path is None:
+        if not self.log_path:
             if self.updated:
                 self.stdout.write("\n")
                 self.updated = False
