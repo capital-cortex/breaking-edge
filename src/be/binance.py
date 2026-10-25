@@ -1168,22 +1168,6 @@ class Kliner():
         self.on_bar_prev_time   = self.bah.get_binance_datetime().floor(utils.interval_to_freq(self.intervals[0])).timestamp()
         assert "mo" not in [utils.get_letters(interval) for interval in self.intervals], "Error: interval 'mo' is currently not supported."
     
-    def on_tick(self, delay: float = 0.1) -> None:
-        time.sleep(delay)
-        if self.platform_time.was_synced():
-            self.bah.set_timestamp_offset_seconds()
-        self.timestamper.update(self.bah.get_binance_datetime())
-        t = time.time()
-        if t < self.on_timer_prev_time + self.timer_seconds:
-            return
-        self.on_timer()
-        self.on_timer_prev_time = t
-    
-    def on_timer(self) -> None:
-        if self.heartbeat_url is not None:
-            utils.send_heartbeat(self.heartbeat_url)
-        self.bah.set_timestamp_offset_seconds()
-    
     def klines_update(self, symbol: str, interval: str, bar_time: float) -> bool:
         klines = self.symbol_klines[symbol]
         interval_seconds = utils.interval_to_timedelta(interval).total_seconds()
@@ -1211,6 +1195,22 @@ class Kliner():
                 return False
         self.symbol_klines[symbol] = klines
         return True
+    
+    def on_tick(self, delay: float = 0.1) -> None:
+        time.sleep(delay)
+        if self.platform_time.was_synced():
+            self.bah.set_timestamp_offset_seconds()
+        self.timestamper.update(self.bah.get_binance_datetime())
+        t = time.time()
+        if t < self.on_timer_prev_time + self.timer_seconds:
+            return
+        self.on_timer()
+        self.on_timer_prev_time = t
+    
+    def on_timer(self) -> None:
+        if self.heartbeat_url is not None:
+            utils.send_heartbeat(self.heartbeat_url)
+        self.bah.set_timestamp_offset_seconds()
     
     def on_bar(self, datetime: pd.Timestamp, bar_time: float) -> None:
         # update files
