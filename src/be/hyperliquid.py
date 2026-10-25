@@ -549,15 +549,16 @@ class HyperliquidLogger():
 class HyperliquidFillsLogger(HyperliquidLogger):
     COLUMNS = [*Fill.__annotations__]
     
-    def update(self, new_fills: list[Fill]) -> bool:
-        if len(new_fills) == 0:
-            return False
+    def update(self, new_fills: list[Fill]) -> int:
+        fills_cnt = len(new_fills)
+        if fills_cnt == 0:
+            return fills_cnt
         self.df.loc[len(self.df), self.COLUMNS] = [
             n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
             for row in new_fills for v in row
         ]
         if not self.path:
-            return True
+            return fills_cnt
         print("Logging new user fills:")
         with open(self.path, "a") as f:
             for fill in new_fills:
@@ -565,7 +566,7 @@ class HyperliquidFillsLogger(HyperliquidLogger):
                 line = ",".join(str(v) for v in row)
                 print(str(row)[1:-1])
                 f.write(f"{line}\n")
-        return True
+        return fills_cnt
     
     def get_df_agg(self, round_decimals: int = 6) -> pd.DataFrame:
         groups = self.df.groupby("time")
@@ -584,15 +585,16 @@ class HyperliquidFillsLogger(HyperliquidLogger):
 class HyperliquidFundingsLogger(HyperliquidLogger):
     COLUMNS = [*[*UserFunding.__annotations__][:-1], *Delta.__annotations__]
     
-    def update(self, new_fundings: list[UserFunding], verbose : bool = False) -> bool:
-        if len(new_fundings) == 0:
-            return False
+    def update(self, new_fundings: list[UserFunding], verbose : bool = False) -> int:
+        fundings_cnt = len(new_fundings)
+        if fundings_cnt == 0:
+            return fundings_cnt
         self.df.loc[len(self.df), self.COLUMNS] = [
             n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
             for row in new_fundings for v in row
         ]
         if not self.path:
-            return True
+            return fundings_cnt
         print("Logging new user fundings:")
         funding_usdc = 0.0
         with open(self.path, "a") as f:
@@ -606,7 +608,7 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
         if not verbose:
             print(f"... ({len(new_fundings)}) ...")
         sys.stdout.write("Funding total: " + Rainbow.paint_value(f"{funding_usdc:.2f}") + " $.\n")
-        return True
+        return fundings_cnt
     
     def get_df(self) -> pd.DataFrame:
         df = self.df.copy()
