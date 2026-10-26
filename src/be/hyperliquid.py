@@ -551,19 +551,22 @@ class HyperliquidFillsLogger(HyperliquidLogger):
     COLUMNS = [*Fill.__annotations__]
     
     def update(self, new_fills: list[Fill]) -> int:
+        def _to_list(fill: Fill) -> list[Any]:
+            return [fill[col] for col in self.COLUMNS]
         fills_cnt = len(new_fills)
         if fills_cnt == 0:
             return fills_cnt
-        self.df.loc[len(self.df), self.COLUMNS] = [
-            [n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v for v in row]
-            for row in new_fills
-        ]
+        new_df = pd.DataFrame([
+            [n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v for v in _to_list(fill)]
+            for fill in new_fills
+        ], columns=self.COLUMNS)
+        self.df = pd.concat([self.df, new_df], ignore_index=True)
         if not self.path:
             return fills_cnt
         print("Logging new user fills:")
         with open(self.path, "a") as f:
             for fill in new_fills:
-                row: list[Any] = [fill[col] for col in self.COLUMNS]
+                row  = _to_list(fill)
                 line = ",".join(str(v) for v in row)
                 print(str(row)[1:-1])
                 f.write(f"{line}\n")
@@ -587,13 +590,16 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
     COLUMNS = [*[*UserFunding.__annotations__][:-1], *Delta.__annotations__]
     
     def update(self, new_fundings: list[UserFunding], verbose : bool = False) -> int:
+        def _to_list(funding: UserFunding) -> list[Any]:
+            return [funding["time"], funding["hash"], *funding["delta"].values()]
         fundings_cnt = len(new_fundings)
         if fundings_cnt == 0:
             return fundings_cnt
-        self.df.loc[len(self.df), self.COLUMNS] = [
-            [n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v for v in row]
-            for row in new_fundings
-        ]
+        new_df = pd.DataFrame([
+            [n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v for v in _to_list(funding)]
+            for funding in new_fundings
+        ], columns=self.COLUMNS)
+        self.df = pd.concat([self.df, new_df], ignore_index=True)
         if not self.path:
             return fundings_cnt
         print("Logging new user fundings:")
@@ -601,7 +607,7 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
         with open(self.path, "a") as f:
             for funding in new_fundings:
                 funding_usdc += float(funding["delta"]["usdc"])
-                row: list[Any] = [funding["time"], funding["hash"], *funding["delta"].values()]
+                row  = _to_list(funding)
                 line = ",".join(str(v) for v in row)
                 if verbose:
                     print(str(row)[1:-1])
