@@ -555,8 +555,8 @@ class HyperliquidFillsLogger(HyperliquidLogger):
         if fills_cnt == 0:
             return fills_cnt
         self.df.loc[len(self.df), self.COLUMNS] = [
-            n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
-            for row in new_fills for v in row
+            [n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v for v in row]
+            for row in new_fills
         ]
         if not self.path:
             return fills_cnt
@@ -591,8 +591,8 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
         if fundings_cnt == 0:
             return fundings_cnt
         self.df.loc[len(self.df), self.COLUMNS] = [
-            n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v
-            for row in new_fundings for v in row
+            [n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v for v in row]
+            for row in new_fundings
         ]
         if not self.path:
             return fundings_cnt
