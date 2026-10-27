@@ -17,10 +17,10 @@ from abc import ABC
 
 from .ansi import Rainbow
 
-Side          = Literal["A", "B"]
-Dir           = Literal["Open Long", "Open Short", "Close Long", "Close Short"]
-Status        = Literal["ok", "err"]
-PortfolioType = Literal["day", "week", "month", "allTime", "perpDay", "perpWeek", "perpMonth", "perpAllTime"]
+type Side          = Literal["A", "B"]
+type Dir           = Literal["Open Long", "Open Short", "Close Long", "Close Short"]
+type Status        = Literal["ok", "err"]
+type PortfolioType = Literal["day", "week", "month", "allTime", "perpDay", "perpWeek", "perpMonth", "perpAllTime"]
 
 class OpenOrder(TypedDict):
     coin      : str
