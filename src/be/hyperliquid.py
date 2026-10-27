@@ -513,7 +513,7 @@ class HyperliquidApiHelper():
         return df
     
     def get_portfolio_df(self, portfolio_type: PortfolioType) -> pd.DataFrame:
-        assert portfolio_type in (types := get_args(PortfolioType)), f"Portfolio type must be one of {types}"
+        assert portfolio_type in (types := get_args(PortfolioType.__value__)), f"Portfolio type must be one of {types}"
         portfolios = self.info_portfolio(self.address)
         history = next(p for p in portfolios if p[0] == portfolio_type)[1]
         val_df = pd.DataFrame(history["accountValueHistory"], columns=["time", "accountValueHistory"])
