@@ -180,7 +180,7 @@ class HyperliquidApiHelper():
                 self.open_orders = self.info_open_orders(self.address)
                 break
             except Exception as e:
-                print("Failed to initialize HyperliquidApiHelper:")
+                print("Failed to initialize HyperliquidApiHelper():")
                 print(e)
                 print("Retrying in 60 seconds...")
                 time.sleep(60)

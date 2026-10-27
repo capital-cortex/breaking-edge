@@ -614,7 +614,7 @@ class BinanceApiHelper():
                 assert self.set_timestamp_offset_seconds()
                 break
             except Exception as e:
-                print("Failed to initialize BinanceApiHelper:")
+                print("Failed to initialize BinanceApiHelper():")
                 print(e)
                 print("Retrying in 60 seconds...")
                 time.sleep(60)

@@ -1092,7 +1092,7 @@ class AlpacaApiHelper():
                 self.clock   = self.client_get_clock()
                 break
             except Exception as e:
-                print("Failed to initialize AlpacaApiHelper:")
+                print("Failed to initialize AlpacaApiHelper():")
                 print(e)
                 print("Retrying in 60 seconds...")
                 time.sleep(60)
