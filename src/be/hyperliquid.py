@@ -12,7 +12,7 @@ from hyperliquid.utils.signing import OrderType # type: ignore
 from hyperliquid.utils         import constants # type: ignore
 from hyperliquid.info          import Info      # type: ignore
 
-from typing import TypedDict, List, Literal, Any, get_args, cast
+from typing import TypedDict, List, Literal, Any, get_args
 from abc import ABC
 
 from .ansi import Rainbow
@@ -529,20 +529,29 @@ class HyperliquidLogger(ABC):
     df      : pd.DataFrame
     
     def __init__(self, log_path: str | None = None) -> None:
-        self.create(log_path, overwrite=False)
         self.path = log_path
+        self.create(overwrite=False)
         self.df   = pd.read_csv(log_path) if log_path else pd.DataFrame(columns=self.COLUMNS)
     
-    def create(self, log_path: str | None, overwrite: bool = False) -> bool:
-        if not log_path:
+    def write(self, new_df: pd.DataFrame, header: bool = False) -> None:
+        if not self.path:
+            return
+        new_df.to_csv(self.path, mode="a", header=header, index=False)
+    
+    def create(self, overwrite: bool = False) -> bool:
+        if not self.path or os.path.exists(self.path) and not overwrite:
             return False
-        if os.path.exists(log_path) and not overwrite:
-            return False
-        print(f"Creating new log file: '{os.path.basename(log_path)}'")
-        with open(log_path, "w") as f:
-            line = ",".join(c for c in self.COLUMNS)
-            f.write(f"{line}\n")
+        print(f"Creating new log file: '{os.path.basename(self.path)}'")
+        self.write(pd.DataFrame(columns=self.COLUMNS), header=True)
         return True
+    
+    @staticmethod
+    def to_numeric(x: pd.Series) -> pd.Series:
+        return n if (n := pd.to_numeric(x, errors="coerce")).any() else x
+    
+    @staticmethod
+    def dump(data: list[Any]) -> str:
+        return f"[{",\n ".join(str(d) for d in data)}]"
     
     def get_last_time(self) -> int:
         return int(self.df.iloc[-1].time) if len(self.df) else -1
@@ -551,25 +560,14 @@ class HyperliquidFillsLogger(HyperliquidLogger):
     COLUMNS = [*Fill.__annotations__]
     
     def update(self, new_fills: list[Fill]) -> int:
-        def _to_list(fill: Fill) -> list[Any]:
-            return [fill[col] for col in self.COLUMNS]
         fills_cnt = len(new_fills)
         if fills_cnt == 0:
             return fills_cnt
-        new_df = pd.DataFrame([
-            [n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v for v in _to_list(fill)]
-            for fill in new_fills
-        ], columns=self.COLUMNS)
-        self.df = pd.concat([self.df, new_df], ignore_index=True)
-        if not self.path:
-            return fills_cnt
         print("Logging new user fills:")
-        with open(self.path, "a") as f:
-            for fill in new_fills:
-                row  = _to_list(fill)
-                line = ",".join(str(v) for v in row)
-                print(str(row)[1:-1])
-                f.write(f"{line}\n")
+        print(self.dump(new_fills))
+        new_df  = pd.DataFrame(new_fills).apply(self.to_numeric)
+        self.df = pd.concat([self.df, new_df], ignore_index=True)
+        self.write(new_df)
         return fills_cnt
     
     def get_df_agg(self, round_decimals: int = 6) -> pd.DataFrame:
@@ -590,31 +588,16 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
     COLUMNS = [*[*UserFunding.__annotations__][:-1], *Delta.__annotations__]
     
     def update(self, new_fundings: list[UserFunding], verbose : bool = False) -> int:
-        def _to_list(funding: UserFunding) -> list[Any]:
-            return [funding["time"], funding["hash"], *funding["delta"].values()]
         fundings_cnt = len(new_fundings)
         if fundings_cnt == 0:
             return fundings_cnt
-        new_df = pd.DataFrame([
-            [n if pd.notna(n := cast(np.int64 | np.float64, pd.to_numeric(v, errors="coerce"))) else v for v in _to_list(funding)]
-            for funding in new_fundings
-        ], columns=self.COLUMNS)
-        self.df = pd.concat([self.df, new_df], ignore_index=True)
-        if not self.path:
-            return fundings_cnt
         print("Logging new user fundings:")
-        funding_usdc = 0.0
-        with open(self.path, "a") as f:
-            for funding in new_fundings:
-                funding_usdc += float(funding["delta"]["usdc"])
-                row  = _to_list(funding)
-                line = ",".join(str(v) for v in row)
-                if verbose:
-                    print(str(row)[1:-1])
-                f.write(f"{line}\n")
-        if not verbose:
-            print(f"... ({len(new_fundings)}) ...")
-        sys.stdout.write("Funding total: " + Rainbow.paint_value(f"{funding_usdc:.2f}") + " $.\n")
+        print(self.dump(new_fundings) if verbose else f"[... ({fundings_cnt}) ...]")
+        new_df  = pd.json_normalize(new_fundings).apply(self.to_numeric) # type: ignore
+        new_df.columns = self.COLUMNS
+        self.df = pd.concat([self.df, new_df], ignore_index=True)
+        sys.stdout.write("Total fundings: " + Rainbow.paint_value(f"{new_df.usdc.sum():.2f}") + " $.\n")
+        self.write(new_df)
         return fundings_cnt
     
     def get_df(self) -> pd.DataFrame:
