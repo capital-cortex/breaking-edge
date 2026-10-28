@@ -10,6 +10,7 @@ from zipfile import ZipFile
 from dotenv import load_dotenv, set_key
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from typing import Callable, Literal, Any
+from dataclasses import dataclass
 
 import sys
 if "" in sys.path:
@@ -1115,6 +1116,14 @@ class BinanceApiHelper():
             f.write(f"{line}\n")
 
 #%% Kliner
+@dataclass
+class KlinerArgs():
+    interval_symbols : dict[str, list[str]]
+    history_seconds  : float
+    timer_seconds    : float
+    heartbeat_url    : str | None = None
+    log_path         : str | None = None
+
 # TODO: use official binance-connector?
 class Kliner():
     platform_time     : PlatformTimeProtocol
@@ -1123,33 +1132,21 @@ class Kliner():
     bah               : BinanceApiHelper
     data_path_f       : str
     interval_symbols  : dict[str, list[str]]
-    history_seconds   : float
-    timer_seconds     : float
-    heartbeat_url     : str | None
     intervals         : list[str]
     symbols           : list[str]
     symbol_intervals  : dict[str, list[str]]
     symbol_klines     : dict[str, pd.DataFrame]
     on_timer_prev_time: float
+    args              : KlinerArgs
     
-    def __init__(
-            self                                   ,
-            interval_symbols : dict[str, list[str]],
-            history_seconds  : float               ,
-            timer_seconds    : float               ,
-            heartbeat_url    : str | None = None   ,
-            log_path         : str | None = None   ,
-    ) -> None:
+    def __init__(self, args: KlinerArgs) -> None:
         self.platform_time = PlatformTime()
-        self.timestamper   = Timestamper(log_path=log_path)
+        self.timestamper   = Timestamper(log_path=args.log_path)
         self.timestamper.update()
         self.dbv = DataBinanceVision(period="live", interval="")
         self.bah = BinanceApiHelper()
         self.data_path_f = os.path.join(self.dbv.get_dir("{symbol}"), "{interval}", DataBinanceVision.KLINES_LIVE_FILENAME_F)
-        self.interval_symbols = {itvl: interval_symbols[itvl] for itvl in utils.get_sorted_intervals([*interval_symbols.keys()])}
-        self.history_seconds  = history_seconds
-        self.timer_seconds    = timer_seconds
-        self.heartbeat_url    = heartbeat_url
+        self.interval_symbols = {itvl: args.interval_symbols[itvl] for itvl in utils.get_sorted_intervals([*args.interval_symbols.keys()])}
         self.intervals = utils.get_sorted_intervals(list(self.interval_symbols.keys()))
         self.symbols   = list({symbol for interval in self.intervals for symbol in self.interval_symbols[interval]})
         self.symbol_intervals = {
@@ -1162,20 +1159,21 @@ class Kliner():
                 data_dir  = os.path.dirname(self.data_path_f.format(symbol=symbol, interval=interval))
                 os.makedirs(data_dir, exist_ok=True)
         self.symbol_klines = {
-            symbol: 
+            symbol:
                 pd.read_csv(data_path, names=DataBinanceVision.KLINES_COLUMNS)
                 if os.path.exists(data_path := self.data_path_f.format(symbol=symbol, interval=self.symbol_intervals[symbol][0]))
                 else pd.DataFrame(columns=DataBinanceVision.KLINES_COLUMNS)
             for symbol in self.symbols
         }
-        self.on_timer_prev_time = time.time() - self.timer_seconds
+        self.on_timer_prev_time = time.time() - args.timer_seconds
         self.on_bar_prev_time   = self.bah.get_binance_datetime().floor(utils.interval_to_freq(self.intervals[0])).timestamp()
+        self.args = args
         assert "mo" not in [utils.get_letters(interval) for interval in self.intervals], "Error: interval 'mo' is currently not supported."
     
     def klines_update(self, symbol: str, interval: str, bar_time: float) -> bool:
         klines = self.symbol_klines[symbol]
         interval_seconds = utils.interval_to_timedelta(interval).total_seconds()
-        history_bars = int(self.history_seconds / interval_seconds)
+        history_bars = int(self.args.history_seconds / interval_seconds)
         while True:
             limit = int((bar_time - klines.iloc[-1].time * self.bah.time_factor) / interval_seconds - 1) if len(klines) else history_bars
             start_time = int((bar_time - interval_seconds * limit) / self.bah.time_factor)
@@ -1206,14 +1204,14 @@ class Kliner():
             self.bah.set_timestamp_offset_seconds()
         self.timestamper.update(self.bah.get_binance_datetime())
         t = time.time()
-        if t < self.on_timer_prev_time + self.timer_seconds:
+        if t < self.on_timer_prev_time + self.args.timer_seconds:
             return
         self.on_timer()
         self.on_timer_prev_time = t
     
     def on_timer(self) -> None:
-        if self.heartbeat_url:
-            utils.send_heartbeat(self.heartbeat_url)
+        if self.args.heartbeat_url:
+            utils.send_heartbeat(self.args.heartbeat_url)
         self.bah.set_timestamp_offset_seconds()
     
     def on_bar(self, datetime: pd.Timestamp, bar_time: float) -> None:
