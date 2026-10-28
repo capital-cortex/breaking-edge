@@ -56,6 +56,23 @@ class DataBinanceVision:
         "volume_quote_sell" : "sum"  ,
         "trades_abs"        : "sum"  ,
     }
+    KLINES_TABLE_SCHEMA = """
+        symbol            VARCHAR  ,
+        time              TIMESTAMP,
+        price_open        DOUBLE   ,
+        price_high        DOUBLE   ,
+        price_low         DOUBLE   ,
+        price_close       DOUBLE   ,
+        volume_abs        DOUBLE   ,
+        volume_buy        DOUBLE   ,
+        volume_sell       DOUBLE   ,
+        time_close        TIMESTAMP,
+        volume_quote_abs  DOUBLE   ,
+        volume_quote_buy  DOUBLE   ,
+        volume_quote_sell DOUBLE   ,
+        trades_abs        BIGINT   ,
+        PRIMARY KEY (symbol, time)
+    """
     KLINES_COLUMNS          = [*KLINES_AGGRULES.keys()]
     KLINES_CLEAN_COLUMNS    = [*KLINES_CLEAN_AGGRULES.keys()]
     KLINES_LIVE_FILENAME_F  = "{symbol}-{interval}-live.csv"
@@ -530,24 +547,7 @@ class DataBinanceVision:
     ) -> None:
         con = self.connect_db("w")
         table_name = self.get_table_name()
-        TABLE_SCHEMA = """
-            symbol            VARCHAR  ,
-            time              TIMESTAMP,
-            price_open        DOUBLE   ,
-            price_high        DOUBLE   ,
-            price_low         DOUBLE   ,
-            price_close       DOUBLE   ,
-            volume_abs        DOUBLE   ,
-            volume_buy        DOUBLE   ,
-            volume_sell       DOUBLE   ,
-            time_close        TIMESTAMP,
-            volume_quote_abs  DOUBLE   ,
-            volume_quote_buy  DOUBLE   ,
-            volume_quote_sell DOUBLE   ,
-            trades_abs        BIGINT   ,
-            PRIMARY KEY (symbol, time)
-        """
-        con.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({TABLE_SCHEMA});")
+        con.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({self.KLINES_TABLE_SCHEMA});")
         timestamp_bgn_tmp = self.timestamp_bgn
         timestamp_end_tmp = self.timestamp_end
         any_data = False
@@ -577,7 +577,7 @@ class DataBinanceVision:
             return
         con.execute(f"""
             DROP TABLE IF EXISTS {table_name}_ordered;
-            CREATE TABLE {table_name}_ordered ({TABLE_SCHEMA});
+            CREATE TABLE {table_name}_ordered ({self.KLINES_TABLE_SCHEMA});
             INSERT INTO {table_name}_ordered SELECT * FROM {table_name}
             ORDER BY symbol, time;
             DROP TABLE {table_name};
