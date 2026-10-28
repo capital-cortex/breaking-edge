@@ -589,6 +589,7 @@ class DataBinanceVision:
 class BinanceApiHelper():
     API_LIMIT     =  1000   # trades, klines
     REQUEST_FREQ  =     3.0 # Hz
+    TIMEOUT       =    10.0 # in s
     RECV_WINDOW   = 60000   # in ms
     PRECISION_USD =     2   # digits after point
     
@@ -609,7 +610,7 @@ class BinanceApiHelper():
             print(f"Running with binance api key.")
         while True:
             try:
-                self.client            = Client(api_key, api_secret)
+                self.client            = Client(api_key, api_secret, requests_params={"timeout": self.TIMEOUT})
                 self.exchange_info     = self.client_get_exchange_info()
                 self.time_factor       = utils.get_time_factor(self.client_get_server_time())
                 self.last_request_time = time.time()
@@ -1114,6 +1115,7 @@ class BinanceApiHelper():
             f.write(f"{line}\n")
 
 #%% Kliner
+# TODO: use official binance-connector?
 class Kliner():
     platform_time     : PlatformTimeProtocol
     timestamper       : Timestamper
