@@ -23,6 +23,7 @@ from be.time import PlatformTime, PlatformTimeProtocol, Timestamper
 #%% Data Binance Vision
 class DataBinanceVision:
     URL_F                   = "https://data.binance.vision/data/{market_type}/{futures_type}/{period}/{data_type}/{symbol}/{interval}/{symbol}-{specifier}-{date}.zip"
+    KLINES_API_URL          = "https://api.binance.com/api/v3/klines"
     BOOKDEPTH_TIMESTAMP_MIN = "2023-01-01"
     FUTURES_TIMESTAMP_MIN   = "2019-09-08"
     TRADES_COLUMNS          = ["id", "price", "volume", "volume_quote", "time", "is_sell", "is_best_match"]
@@ -223,7 +224,7 @@ class DataBinanceVision:
                     "limit"     : "1"   ,
                 }
                 try:
-                    response = requests.get("https://api.binance.com/api/v3/klines", params=params, timeout=self.TIMEOUT)
+                    response = requests.get(self.KLINES_API_URL, params=params, timeout=self.TIMEOUT)
                 except Exception as e:
                     tqdm.write(f"Failed to download all data for '{symbol}':")
                     tqdm.write(str(e))
