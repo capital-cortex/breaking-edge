@@ -164,6 +164,7 @@ class HyperliquidApiHelper():
             base_url      : str              = constants.MAINNET_API_URL,
             skip_ws       : bool             = True                     ,
             perp_dexs     : list[str] | None = None                     ,
+            timeout       : float     | None = 10.0                     ,
     ) -> None:
         self.eth_account = Account.from_key(private_key)
         if agent_address is None:
@@ -174,8 +175,8 @@ class HyperliquidApiHelper():
             print(f"Running with agent address.")
         while True:
             try:
-                self.info        = Info(base_url, skip_ws, perp_dexs=perp_dexs)
-                self.exchange    = Exchange(self.eth_account, base_url, account_address=self.address, perp_dexs=perp_dexs)
+                self.info        = Info(base_url, skip_ws, perp_dexs=perp_dexs, timeout=timeout)
+                self.exchange    = Exchange(self.eth_account, base_url, account_address=self.address, perp_dexs=perp_dexs, timeout=timeout)
                 self.user_state  = self.info_user_state (self.address)
                 self.open_orders = self.info_open_orders(self.address)
                 break

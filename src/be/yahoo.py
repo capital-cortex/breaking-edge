@@ -20,6 +20,7 @@ class DataYahooFinance:
         "volume_abs"  : "sum"  ,
         "time_close"  : "last" ,
     }
+    TIMEOUT = 10
 
     interval      : Literal[
         "1m" , "2m", "5m", "15m", "30m", "60m",
@@ -66,6 +67,7 @@ class DataYahooFinance:
             interval          = self.interval.replace("w", "wk"),
             multi_level_index = False                           ,
             progress          = False                           ,
+            timeout           = self.TIMEOUT                    ,
         )
         assert df is not None, "Did not receive df from yfinance."
         df_index = pd.DatetimeIndex(df.index).tz_localize(None)

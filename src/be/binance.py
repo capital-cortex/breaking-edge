@@ -61,6 +61,7 @@ class DataBinanceVision:
     KLINESRDY_FILENAME_F    = ".klinesrdy{interval}"
     TIMESTAMP_MIN           = "1970-01"
     TIMESTAMP_MAX           = "2170-01"
+    TIMEOUT                 = (3.05, 10)
     
     market_type       : Literal["futures"  , "spot"             ]
     futures_type      : Literal["um"       , "cm"     ,""       ]
@@ -75,7 +76,7 @@ class DataBinanceVision:
     db_path           : str
     klinesrdy_path_f  : str
     datardy_prev_mtime: float
-
+    
     # TODO: unevenly spaced index is ok for interval == "mo"
     # TODO: input validation
     # TODO: data_binance_vision.duckdb -> data.duckdb
@@ -222,7 +223,7 @@ class DataBinanceVision:
                     "limit"     : "1"   ,
                 }
                 try:
-                    response = requests.get("https://api.binance.com/api/v3/klines", params=params)
+                    response = requests.get("https://api.binance.com/api/v3/klines", params=params, timeout=self.TIMEOUT)
                 except Exception as e:
                     tqdm.write(f"Failed to download all data for '{symbol}':")
                     tqdm.write(str(e))
@@ -255,7 +256,7 @@ class DataBinanceVision:
                 url  = self.get_url (symbol, date)
                 path = self.get_path(symbol, date)
                 try:
-                    response = requests.get(url, stream=True)
+                    response = requests.get(url, stream=True, timeout=self.TIMEOUT)
                 except Exception as e:
                     tqdm.write(f"Failed to download {"" if first_file_found else "all "}data for '{symbol}':")
                     tqdm.write(str(e))

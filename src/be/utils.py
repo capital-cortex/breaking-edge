@@ -100,6 +100,7 @@ def send_notification(
         url     : str       ,
         data    : Any = None,
         json    : Any = None,
+        timeout : Any = 10.0,
         **kwargs: Any       ,
 ) -> bool:
     """
@@ -107,7 +108,7 @@ def send_notification(
     returns `True` if succeeded, hides slug in error print
     """
     try:
-        response = requests.post(url, data, json, **kwargs)
+        response = requests.post(url, data, json, timeout=timeout, **kwargs)
     except Exception as e:
         print(f"Failed request to send notification:")
         print(hide_secret(str(e), url.split("/")[-1]))
@@ -118,9 +119,9 @@ def send_notification(
         return False
     return True
 
-def send_heartbeat(url: str) -> bool:
+def send_heartbeat(url: str, timeout: Any = 10.0) -> bool:
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=timeout)
     except Exception as e:
         print("Failed request to send heartbeat:")
         print(hide_secret(str(e), url.split("/")[-1]))
