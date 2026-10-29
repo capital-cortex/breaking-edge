@@ -164,7 +164,7 @@ class HyperliquidApiHelper():
             base_url      : str              = constants.MAINNET_API_URL,
             skip_ws       : bool             = True                     ,
             perp_dexs     : list[str] | None = None                     ,
-            timeout       : float     | None = 10.0                     ,
+            timeout       : float     | None = 30.0                     ,
     ) -> None:
         self.eth_account = Account.from_key(private_key)
         if agent_address is None:

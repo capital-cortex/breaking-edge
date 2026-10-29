@@ -312,7 +312,7 @@ class DataAlpacaMarkets:
             feed               : Feed                    = "sip"    ,
             adjustment         : str                     = "split"  ,
             regular_hours_only : bool                    =  False   ,
-            timeout            : float                   = 10.0     ,
+            timeout            : float                   = 30.0     ,
             max_retries        : int                     = 3        ,
             session            : requests.Session | None = None     ,
     ) -> None:

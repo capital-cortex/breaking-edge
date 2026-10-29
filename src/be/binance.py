@@ -80,7 +80,7 @@ class DataBinanceVision:
     KLINESRDY_FILENAME_F    = ".klinesrdy{interval}"
     TIMESTAMP_MIN           = "1970-01"
     TIMESTAMP_MAX           = "2170-01"
-    TIMEOUT                 = (3.05, 10)
+    TIMEOUT                 = 30.0
     
     market_type       : Literal["futures"  , "spot"             ]
     futures_type      : Literal["um"       , "cm"     ,""       ]
@@ -590,7 +590,7 @@ class DataBinanceVision:
 class BinanceApiHelper():
     API_LIMIT     =  1000   # trades, klines
     REQUEST_FREQ  =     3.0 # Hz
-    TIMEOUT       =    10.0 # in s
+    TIMEOUT       =    30.0 # in s
     RECV_WINDOW   = 60000   # in ms
     PRECISION_USD =     2   # digits after point
     

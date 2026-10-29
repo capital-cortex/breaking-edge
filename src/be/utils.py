@@ -100,7 +100,7 @@ def send_notification(
         url     : str       ,
         data    : Any = None,
         json    : Any = None,
-        timeout : Any = 10.0,
+        timeout : Any = 30.0,
         **kwargs: Any       ,
 ) -> bool:
     """
@@ -119,7 +119,7 @@ def send_notification(
         return False
     return True
 
-def send_heartbeat(url: str, timeout: Any = 10.0) -> bool:
+def send_heartbeat(url: str, timeout: Any = 30.0) -> bool:
     try:
         response = requests.get(url, timeout=timeout)
     except Exception as e:
