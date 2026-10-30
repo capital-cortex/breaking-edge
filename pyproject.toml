@@ -34,4 +34,4 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-"be" = ["py.typed"]
+"be" = ["py.typed", "typing/py.typed"]

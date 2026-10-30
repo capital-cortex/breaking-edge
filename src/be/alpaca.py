@@ -12,77 +12,16 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from dotenv import load_dotenv
-from typing import Literal, Any, TypedDict, Required, cast
+from typing import Literal, Any, cast
 from urllib.parse import quote
+
+from .typing.alpaca import *
 
 #%% Data Alpaca Vision
 load_dotenv()
 
 class AlpacaDataError(RuntimeError):
     pass
-
-
-class AlpacaBar(TypedDict):
-    """One raw bar as returned by Alpaca's /v2/stocks/{symbol}/bars endpoint."""
-    t  : str   # RFC3339 timestamp
-    o  : float
-    h  : float
-    l  : float
-    c  : float
-    v  : float
-    n  : float
-    vw : float
-
-
-class AlpacaBarsPage(TypedDict):
-    bars            : list[AlpacaBar] | None
-    next_page_token : str | None
-    symbol          : str
-
-
-class AlpacaCalendarDay(TypedDict):
-    date            : str
-    open            : str
-    close           : str
-    session_open    : str
-    session_close   : str
-    settlement_date : str
-
-
-class AlpacaClock(TypedDict):
-    timestamp  : str
-    is_open    : bool
-    next_open  : str
-    next_close : str
-
-
-class AlpacaAccount(TypedDict):
-    cash            : str
-    buying_power    : str
-    portfolio_value : str
-
-
-class AlpacaAsset(TypedDict, total=False):
-    symbol       : str
-    fractionable : bool
-    close_price  : str
-
-
-class AlpacaPosition(TypedDict, total=False):
-    symbol        : str
-    current_price : str
-
-
-class AlpacaOrder(TypedDict, total=False):
-    id                : Required[str]
-    side              : Required[str]
-    submitted_at      : Required[str]
-    type              : str
-    status            : str
-    filled_at         : str | None
-    filled_qty        : str
-    filled_avg_price  : str | None
-
 
 class DataAlpacaMarkets:
     """Download, cache and query US stock bars from Alpaca's Market Data API.
@@ -480,7 +419,7 @@ class DataAlpacaMarkets:
 
         raise AlpacaDataError("Alpaca request failed without a response.")
 
-    def _request_bars(self, symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> list[AlpacaBar]:
+    def _request_bars(self, symbol: str, start: pd.Timestamp, end: pd.Timestamp) -> list[Bar]:
         url = self.URL_F.format(symbol=quote(symbol, safe=""))
         params: dict[str, Any] = {
             "timeframe"  : self.get_timeframe()      ,
@@ -491,14 +430,14 @@ class DataAlpacaMarkets:
             "limit"      : self.PAGE_LIMIT          ,
             "sort"       : "asc"                    ,
         }
-        bars: list[AlpacaBar] = []
+        bars: list[Bar] = []
         seen_tokens: set[str] = set()
         while True:
             data = self._request_json(url, params)
             page_bars: Any = data.get("bars") or [] # Alpaca returns 'bars': null (not []) when nothing is in range
             if not isinstance(page_bars, list) or not all(isinstance(bar, dict) for bar in cast("list[Any]", page_bars)):
                 raise AlpacaDataError("Alpaca returned an unexpected 'bars' payload.")
-            bars.extend(cast("list[AlpacaBar]", page_bars))
+            bars.extend(cast("list[Bar]", page_bars))
 
             page_token = data.get("next_page_token")
             if page_token is None:
@@ -537,7 +476,7 @@ class DataAlpacaMarkets:
         rows_raw: Any = response.json()
         if not isinstance(rows_raw, list):
             raise AlpacaDataError("Alpaca returned an unexpected 'calendar' payload.")
-        rows = cast("list[AlpacaCalendarDay]", rows_raw)
+        rows = cast("list[CalendarDay]", rows_raw)
         calendar: pd.DataFrame = pd.DataFrame(rows, columns=["date", "close"])
         date_col = calendar["date"]
         close_col = calendar["close"]
@@ -547,7 +486,7 @@ class DataAlpacaMarkets:
         self._calendar_cache[cache_key] = calendar
         return calendar
 
-    def _bars_to_df(self, bars: list[AlpacaBar]) -> pd.DataFrame:
+    def _bars_to_df(self, bars: list[Bar]) -> pd.DataFrame:
         if not bars:
             return pd.DataFrame(columns=self.KLINES_COLUMNS)
         df: pd.DataFrame = pd.DataFrame(cast("list[dict[str, Any]]", bars))
@@ -1131,22 +1070,22 @@ class AlpacaApiHelper():
         raise AlpacaDataError("Alpaca request failed without a response.")
 
     # Client Functions
-    def client_get_account(self) -> AlpacaAccount:
-        return cast(AlpacaAccount, self._request("GET", "/v2/account"))
-    def client_get_clock(self) -> AlpacaClock:
-        return cast(AlpacaClock, self._request("GET", "/v2/clock"))
-    def client_get_asset(self, symbol: str) -> AlpacaAsset:
-        return cast(AlpacaAsset, self._request("GET", f"/v2/assets/{quote(symbol, safe='')}"))
-    def client_create_order(self, **params: Any) -> AlpacaOrder:
-        return cast(AlpacaOrder, self._request("POST", "/v2/orders", json_body=params))
-    def client_get_open_orders(self, **params: Any) -> list[AlpacaOrder]:
-        return cast("list[AlpacaOrder]", self._request("GET", "/v2/orders", params=params))
-    def client_get_order(self, order_id: str) -> AlpacaOrder:
-        return cast(AlpacaOrder, self._request("GET", f"/v2/orders/{order_id}"))
+    def client_get_account(self) -> Account:
+        return self._request("GET", "/v2/account")
+    def client_get_clock(self) -> Clock:
+        return cast(Clock, self._request("GET", "/v2/clock"))
+    def client_get_asset(self, symbol: str) -> Asset:
+        return self._request("GET", f"/v2/assets/{quote(symbol, safe='')}")
+    def client_create_order(self, **params: Any) -> Order:
+        return self._request("POST", "/v2/orders", json_body=params)
+    def client_get_open_orders(self, **params: Any) -> list[Order]:
+        return self._request("GET", "/v2/orders", params=params)
+    def client_get_order(self, order_id: str) -> Order:
+        return self._request("GET", f"/v2/orders/{order_id}")
     def client_cancel_order(self, order_id: str) -> None:
         self._request("DELETE", f"/v2/orders/{order_id}")
-    def client_get_position(self, symbol: str) -> AlpacaPosition:
-        return cast(AlpacaPosition, self._request("GET", f"/v2/positions/{quote(symbol, safe='')}"))
+    def client_get_position(self, symbol: str) -> Position:
+        return self._request("GET", f"/v2/positions/{quote(symbol, safe='')}")
 
     # Time Functions
     def get_alpaca_datetime(self) -> pd.Timestamp:
@@ -1167,7 +1106,7 @@ class AlpacaApiHelper():
             side      : Literal["buy", "sell"]  ,
             qty_asset : str | None = None       ,
             qty_usd   : str | None = None       ,
-    ) -> AlpacaOrder:
+    ) -> Order:
         params: dict[str, Any] = {"symbol": symbol, "side": side, "type": "market", "time_in_force": "day"}
         if qty_asset is not None:
             params["qty"] = qty_asset
@@ -1180,7 +1119,7 @@ class AlpacaApiHelper():
             symbol    : str                   ,
             side      : Literal["buy", "sell"],
             qty_asset : str                   ,
-    ) -> AlpacaOrder:
+    ) -> Order:
         return self.client_create_order(symbol=symbol, side=side, type="market", time_in_force="day", qty=qty_asset)
 
     def create_bracket_order(
@@ -1190,7 +1129,7 @@ class AlpacaApiHelper():
             qty_asset : str                   ,
             sl_price  : str                   ,
             tp_price  : str                   ,
-    ) -> AlpacaOrder:
+    ) -> Order:
         return self.client_create_order(
             symbol        = symbol                          ,
             side          = side                             ,
@@ -1211,7 +1150,7 @@ class AlpacaApiHelper():
             sl_price      : str                   ,
             tp_price      : str                   ,
             precision_usd : int = PRECISION_USD   ,
-    ) -> AlpacaOrder | None:
+    ) -> Order | None:
         precision = self.get_quantity_precision(symbol)
 
         qty_asset_str = None
@@ -1234,7 +1173,7 @@ class AlpacaApiHelper():
             print(e)
             return None
 
-    def get_open_orders(self, symbol: str | None = None) -> list[AlpacaOrder]:
+    def get_open_orders(self, symbol: str | None = None) -> list[Order]:
         params: dict[str, Any] = {"status": "open"}
         if symbol is not None:
             params["symbols"] = symbol
@@ -1245,8 +1184,8 @@ class AlpacaApiHelper():
             order_id : str           ,
             tries    : int = 45 * 2  ,
             delay    : int = 30      ,
-    ) -> AlpacaOrder:
-        order : AlpacaOrder | None = None
+    ) -> Order:
+        order : Order | None = None
         attempt = 0
         for attempt in range(1, tries + 1):
             try:
@@ -1277,7 +1216,7 @@ class AlpacaApiHelper():
     def log_trade(
             self                     ,
             log_path : str           ,
-            order    : AlpacaOrder   ,
+            order    : Order   ,
             trade_id : int           ,
             symbol   : str           ,
             sl_price : str = "NA"    ,

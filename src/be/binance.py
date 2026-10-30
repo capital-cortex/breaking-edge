@@ -10,7 +10,6 @@ from zipfile import ZipFile
 from dotenv import load_dotenv, set_key
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from typing import Callable, Literal, Any
-from dataclasses import dataclass
 
 import sys
 if "" in sys.path:
@@ -20,6 +19,7 @@ from binance.client import Client # type: ignore
 
 from be import utils
 from be.time import PlatformTime, PlatformTimeProtocol, Timestamper
+from be.typing.binance import *
 
 #%% Data Binance Vision
 class DataBinanceVision:
@@ -1116,14 +1116,6 @@ class BinanceApiHelper():
             f.write(f"{line}\n")
 
 #%% Kliner
-@dataclass
-class KlinerArgs():
-    interval_symbols : dict[str, list[str]]
-    history_seconds  : float
-    timer_seconds    : float
-    heartbeat_url    : str | None = None
-    log_path         : str | None = None
-
 # TODO: use official binance-connector?
 class Kliner():
     platform_time     : PlatformTimeProtocol
