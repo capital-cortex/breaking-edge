@@ -481,7 +481,8 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
         new_df  = pd.json_normalize(new_fundings).apply(self.to_numeric) # type: ignore
         new_df.columns = self.COLUMNS
         self.df = pd.concat([self.df, new_df], ignore_index=True)
-        sys.stdout.write("Total fundings: " + Rainbow.paint_value(f"{new_df.usdc.sum():.2f}") + " $.\n")
+        fundings_sum = new_df.usdc.sum()
+        sys.stdout.write(f"Total fundings: {"+" if fundings_sum > 0.0 else ""}{Rainbow.paint_value(f"{fundings_sum:.2f}")} $.\n")
         self.write(new_df)
         return fundings_cnt
     
