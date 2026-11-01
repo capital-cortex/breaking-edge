@@ -166,6 +166,7 @@ class Timestamper():
     def __init__(
             self                               ,
             format   : str        = "%F %T.%3f",
+            cursor   : bool       = False      ,
             log_path : str | None = None       ,
     ) -> None:
         self.stdout   = _sys.stdout
@@ -173,7 +174,11 @@ class Timestamper():
         self.buffer   = ""
         self.rainbow  = Rainbow()
         self.format   = format
+        self.cursor   = cursor
         self.log_path = log_path
+        if not cursor:
+            _sys.stdout.write("\x1b[?25l")
+            _sys.stdout.flush()
         _sys.stdout = self
     
     def __getattr__(self, name: str) -> _typing.Any:
@@ -237,3 +242,6 @@ class Timestamper():
     
     def restore(self) -> None:
         _sys.stdout = self.stdout
+        if not self.cursor:
+            _sys.stdout.write("\x1b[?25h")
+            _sys.stdout.flush()
