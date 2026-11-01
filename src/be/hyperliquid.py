@@ -15,6 +15,7 @@ from hyperliquid.info          import Info      # type: ignore
 from typing import Any, get_args
 from abc import ABC
 
+from .utils import get_time_factor
 from .ansi import Rainbow
 from .typing.hyperliquid import *
 
@@ -29,6 +30,7 @@ class HyperliquidApiHelper():
     exchange    : Exchange
     user_state  : UserState       | None
     open_orders : list[OpenOrder] | None
+    time_factor : float
     
     def __init__(
             self                                                        ,
@@ -52,6 +54,7 @@ class HyperliquidApiHelper():
                 self.exchange    = Exchange(self.eth_account, base_url, account_address=self.address, perp_dexs=perp_dexs, timeout=timeout)
                 self.user_state  = self.info_user_state (self.address)
                 self.open_orders = self.info_open_orders(self.address)
+                self.time_factor = get_time_factor(self.user_state["time"])
                 break
             except Exception as e:
                 print("Failed to initialize HyperliquidApiHelper():")
@@ -317,7 +320,7 @@ class HyperliquidApiHelper():
     """
     def get_open_orders(self, coin: str | None = None) -> list[OpenOrder] | None:
         try:
-            assert self.open_orders is not None, "open orders is None"
+            assert self.open_orders is not None, "open orders is None."
             open_orders = [o for o in self.open_orders if coin is None or o["coin"] == coin]
         except Exception as e:
             print(f"Failed to get open orders{f" for '{coin}'" if coin is not None else ""}:")
@@ -382,8 +385,10 @@ class HyperliquidApiHelper():
             timestamp_end : str = "2170-01",
     ) -> pd.DataFrame:
         funding_hist: list[Funding] = []
-        t     = 1000 * int(    pd.to_datetime(timestamp_bgn).timestamp())
-        t_end = 1000 * int(min(pd.to_datetime(timestamp_end).timestamp(), pd.Timestamp.now("utc").timestamp()))
+        t     =     pd.to_datetime(timestamp_bgn).timestamp()
+        t_end = min(pd.to_datetime(timestamp_end).timestamp(), pd.Timestamp.now("utc").timestamp())
+        t     = int(t     / self.time_factor)
+        t_end = int(t_end / self.time_factor)
         while True:
             rows = self.info_funding_history(coin, t, t_end)
             if not len(rows):
@@ -393,7 +398,7 @@ class HyperliquidApiHelper():
                 break
             funding_hist.extend(rows)
         df = pd.DataFrame(funding_hist, columns=list(Funding.__annotations__.keys()))
-        df.index = pd.to_datetime(df.time, unit="ms")
+        df.index = pd.to_datetime(df.time * self.time_factor, unit="s")
         df = df.drop(columns=["time", "coin"]).astype(float)
         return df
     
@@ -404,7 +409,7 @@ class HyperliquidApiHelper():
         val_df = pd.DataFrame(history["accountValueHistory"], columns=["time", "accountValueHistory"])
         pnl_df = pd.DataFrame(history["pnlHistory"         ], columns=["time", "pnlHistory"         ])
         df = val_df.merge(pnl_df, on="time")
-        df.index = pd.to_datetime(df.time, unit="ms")
+        df.index = pd.to_datetime(df.time * self.time_factor, unit="s")
         df = df.drop(columns="time").astype(float)
         return df
 
@@ -466,7 +471,8 @@ class HyperliquidFillsLogger(HyperliquidLogger):
             df_agg.loc[group.time, "px"] = (group.px * group.sz).sum() / group.sz.sum()
         float_columns = df_agg.columns[df_agg.dtypes == float]
         df_agg[float_columns] = df_agg[float_columns].round(round_decimals)
-        df_agg.index = pd.to_datetime(df_agg.index, unit="ms")
+        time_factor  = get_time_factor(df_agg.index[-1])
+        df_agg.index = pd.to_datetime(df_agg.index * time_factor, unit="s")
         return df_agg
 
 class HyperliquidFundingsLogger(HyperliquidLogger):
@@ -488,5 +494,6 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
     
     def get_df(self) -> pd.DataFrame:
         df = self.df.copy()
-        df.index = pd.to_datetime(df["time"], unit="ms")
+        time_factor = get_time_factor(df.iloc[-1].time)
+        df.index    = pd.to_datetime(df.time * time_factor, unit="s")
         return df
