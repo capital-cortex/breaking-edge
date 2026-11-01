@@ -276,27 +276,38 @@ class HyperliquidApiHelper():
             return None
         return set_cnt
     
-    def get_open_positions(self, coin: str) -> list[AssetPosition] | None:
+    def get_open_positions(self, coin: str | None = None) -> list[AssetPosition] | None:
         try:
             assert self.user_state is not None, "user state is None."
             open_positions = self.user_state["assetPositions"]
-            open_positions = [p for p in open_positions if p["position"]["coin"] == coin]
+            open_positions = [p for p in open_positions if coin is None or p["position"]["coin"] == coin]
         except Exception as e:
-            print(f"Failed to get open positions for '{coin}':")
+            print(f"Failed to get open positions{f" for '{coin}'" if coin is not None else ""}:")
             print(e)
             return None
         return open_positions
     
-    def get_open_position_side(self, coin: str) -> int | None:
+    def get_open_position_side(self, coin: str | None = None) -> int | None:
         open_positions = self.get_open_positions(coin)
         try:
             assert open_positions is not None, "open positions is None."
             size = sum(float(p["position"]["szi"]) for p in open_positions)
         except Exception as e:
-            print(f"Failed to get open position side for '{coin}':")
+            print(f"Failed to get open position side{f" for '{coin}'" if coin is not None else ""}:")
             print(e)
             return None
         return int(np.sign(size))
+    
+    def get_unrealized_pnl(self, coin: str | None = None) -> float | None:
+        open_positions = self.get_open_positions(coin)
+        try:
+            assert open_positions is not None, "open positions is None."
+            unrealized_pnl = sum(float(p["position"]["unrealizedPnl"]) for p in open_positions)
+        except Exception as e:
+            print(f"Failed to get unrealized pnl{f" for '{coin}'" if coin is not None else ""}:")
+            print(e)
+            return None
+        return float(unrealized_pnl) # cast 0 of empty sum to float
     """
     def get_open_position_cnt(self, coin: str) -> int | None:
         open_positions = self.get_open_positions(coin)
@@ -304,12 +315,12 @@ class HyperliquidApiHelper():
             return None
         return len(open_positions)
     """
-    def get_open_orders(self, coin: str) -> list[OpenOrder] | None:
+    def get_open_orders(self, coin: str | None = None) -> list[OpenOrder] | None:
         try:
             assert self.open_orders is not None, "open orders is None"
-            open_orders = [o for o in self.open_orders if o["coin"] == coin]
+            open_orders = [o for o in self.open_orders if coin is None or o["coin"] == coin]
         except Exception as e:
-            print(f"Failed to get open orders for '{coin}':")
+            print(f"Failed to get open orders{f" for '{coin}'" if coin is not None else ""}:")
             print(e)
             return None
         return open_orders
