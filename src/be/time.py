@@ -226,10 +226,12 @@ class Timestamper():
         for line in lines:
             self.write(line)
     
-    def update(self, timestamp: _datetime.datetime | None = None) -> None:
+    def update(self, timestamp: _datetime.datetime | str | None = None, rainbow: bool = True) -> None:
         if not self.updated:
             self.stdout.write("\n")
-        self.stdout.write("\r" + self.rainbow.paint_delimited(self.format_timestamp(timestamp, self.format)))
+        out = timestamp if isinstance(timestamp, str) else self.format_timestamp(timestamp, self.format)
+        out = out       if not rainbow                else self.rainbow.paint_delimited(out)
+        self.stdout.write("\r" + out)
         self.flush()
         self.updated = True
     
