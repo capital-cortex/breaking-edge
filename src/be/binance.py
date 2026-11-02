@@ -1118,8 +1118,8 @@ class BinanceApiHelper():
 #%% Kliner
 # TODO: use official binance-connector?
 class Kliner():
-    platform_time     : PlatformTimeProtocol
     timestamper       : Timestamper
+    platform_time     : PlatformTimeProtocol
     dbv               : DataBinanceVision
     bah               : BinanceApiHelper
     data_path_f       : str
@@ -1132,9 +1132,9 @@ class Kliner():
     args              : KlinerArgs
     
     def __init__(self, args: KlinerArgs) -> None:
-        self.platform_time = PlatformTime()
         self.timestamper   = Timestamper(log_path=args.log_path)
         self.timestamper.update()
+        self.platform_time = PlatformTime()
         self.dbv = DataBinanceVision(period="live", interval="")
         self.bah = BinanceApiHelper()
         self.data_path_f = os.path.join(self.dbv.get_dir("{symbol}"), "{interval}", DataBinanceVision.KLINES_LIVE_FILENAME_F)
