@@ -305,15 +305,18 @@ class DataBinanceVision:
     
     def get_filenames(self, data_dir: str) -> list[str]:
         filenames = os.listdir(data_dir)
+        file_timestamps: list[pd.Timestamp] = []
         for i in reversed(range(len(filenames))):
-            timestamp_file = pd.to_datetime("-".join(n for n in filenames[i].split(".")[0].split("-") if n.isnumeric()))
+            file_timestamp = pd.to_datetime("-".join(n for n in filenames[i].split(".")[0].split("-") if n.isnumeric()))
             if (not filenames[i].endswith(".zip")
-                or pd.isna(timestamp_file)
-                or timestamp_file <  pd.to_datetime(self.timestamp_bgn)
-                or timestamp_file >= pd.to_datetime(self.timestamp_end)
+                or pd.isna(file_timestamp)
+                or file_timestamp <  pd.to_datetime(self.timestamp_bgn)
+                or file_timestamp >= pd.to_datetime(self.timestamp_end)
             ):
                 filenames.pop(i)
-        file_timestamps = [pd.to_datetime("-".join(part for part in filename.split(".")[0].split("-") if part.isnumeric())) for filename in filenames]
+                continue
+            file_timestamps.insert(0, file_timestamp)
+        file_timestamps = sorted(file_timestamps)
         match self.period:
             case "daily":
                 timestamps = [file_timestamps[0] + pd.DateOffset(days  =i) for i in range(len(file_timestamps))]
