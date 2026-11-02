@@ -437,7 +437,7 @@ class HyperliquidLogger(ABC):
     
     @staticmethod
     def to_numeric(x: pd.Series) -> pd.Series:
-        return n if (n := pd.to_numeric(x, errors="coerce")).any() else x
+        return x if (n := pd.to_numeric(x, errors="coerce")).isna().any() else n
     
     @staticmethod
     def dump(data: list[Any]) -> str:
@@ -471,7 +471,7 @@ class HyperliquidFillsLogger(HyperliquidLogger):
             df_agg.loc[group.time, "px"] = (group.px * group.sz).sum() / group.sz.sum()
         float_columns = df_agg.columns[df_agg.dtypes == float]
         df_agg[float_columns] = df_agg[float_columns].round(round_decimals)
-        time_factor  = get_time_factor(df_agg.index[-1])
+        time_factor  = get_time_factor(df_agg.index[-1]) if len(df_agg) else 1.0
         df_agg.index = pd.to_datetime(df_agg.index * time_factor, unit="s")
         return df_agg
 
@@ -494,6 +494,6 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
     
     def get_df(self) -> pd.DataFrame:
         df = self.df.copy()
-        time_factor = get_time_factor(df.iloc[-1].time)
+        time_factor = get_time_factor(df.iloc[-1].time) if len(df) else 1.0
         df.index    = pd.to_datetime(df.time * time_factor, unit="s")
         return df
