@@ -403,7 +403,7 @@ class HyperliquidApiHelper():
         return df
     
     def get_portfolio_df(self, portfolio_type: PortfolioType) -> pd.DataFrame:
-        assert portfolio_type in (types := get_args(PortfolioType.__value__)), f"Portfolio type must be one of {types}"
+        assert portfolio_type in (types := get_args(PortfolioType.__value__)), f"Portfolio type must be one of: {types}"
         portfolios = self.info_portfolio(self.address)
         history = next(p for p in portfolios if p[0] == portfolio_type)[1]
         val_df = pd.DataFrame(history["accountValueHistory"], columns=["time", "accountValueHistory"])
@@ -457,6 +457,8 @@ class HyperliquidFillsLogger(HyperliquidLogger):
         print(self.dump(new_fills))
         new_df  = pd.DataFrame(new_fills).apply(self.to_numeric)
         self.df = pd.concat([self.df, new_df], ignore_index=True)
+        cpnl_sum = new_df.closedPnl.sum()
+        sys.stdout.write(f"Total closed-PnL: {Rainbow.paint_value(f"{cpnl_sum:.2f}")}$\n")
         self.write(new_df)
         return fills_cnt
     
@@ -488,7 +490,7 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
         new_df.columns = self.COLUMNS
         self.df = pd.concat([self.df, new_df], ignore_index=True)
         fundings_sum = new_df.usdc.sum()
-        sys.stdout.write(f"Total fundings: {Rainbow.paint_value(f"{"+" if fundings_sum > 0.0 else ""}{fundings_sum:.2f}")} $.\n")
+        sys.stdout.write(f"Total fundings: {Rainbow.paint_value(f"{fundings_sum:.2f}")}$\n")
         self.write(new_df)
         return fundings_cnt
     
