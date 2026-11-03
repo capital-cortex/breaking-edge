@@ -459,8 +459,8 @@ class HyperliquidFillsLogger(HyperliquidLogger):
         self.df = pd.concat([self.df, new_df], ignore_index=True)
         cpnl_sum = new_df.closedPnl.sum()
         fees_sum = new_df.fee.sum()
-        sys.stdout.write(f"Total closed-PnL: {Rainbow.paint_value(f"{cpnl_sum:.2f}")}$, ")
-        sys.stdout.write(            f"fees: {Rainbow.paint_value(f"{fees_sum:.2f}")}$\n")
+        sys.stdout.write(f"Total closed-PnL: {Rainbow.paint_value(f"{ cpnl_sum:.2f}")}$, ")
+        sys.stdout.write(            f"fees: {Rainbow.paint_value(f"{-fees_sum:.2f}")}$\n")
         self.write(new_df)
         return fills_cnt
     
