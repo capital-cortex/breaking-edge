@@ -17,8 +17,8 @@ class PlatformTimeProtocol(_typing.Protocol):
 
 class _UnsupportedPlatformTime(PlatformTimeProtocol):
     def __init__(self) -> None:
-        print(f"No 'PlatformTime' implementation for '{_sys.platform}'.")
-        print("The method 'was_synced()' will always return False.")
+        print(f"No PlatformTime() implementation for '{_sys.platform}'.")
+        print("The method was_synced() will always return False.")
     
     def was_synced(self, attempts: int = 45*2, delay: int = 30) -> bool:
         return False
