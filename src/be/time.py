@@ -172,7 +172,6 @@ class Timestamper():
             log_path : str | None = None       ,
     ) -> None:
         self.stdout   = _sys.stdout
-        self.updated  = False
         self.prev_out = ""
         self.buffer   = ""
         self.rainbow  = Rainbow()
