@@ -2,6 +2,8 @@ import os as _os
 import re as _re
 import sys as _sys
 import time as _time
+import math as _math
+import shutil as _shutil
 import datetime as _datetime
 import subprocess as _subprocess
 import typing as _typing
@@ -171,14 +173,15 @@ class Timestamper():
     ) -> None:
         self.stdout   = _sys.stdout
         self.updated  = False
+        self.prev_out = ""
         self.buffer   = ""
         self.rainbow  = Rainbow()
         self.format   = format
         self.cursor   = cursor
         self.log_path = log_path
         if not cursor:
-            _sys.stdout.write("\x1b[?25l")
-            _sys.stdout.flush()
+            self.stdout.write("\x1b[?25l")
+            self.stdout.flush()
         _sys.stdout = self
     
     def __getattr__(self, name: str) -> _typing.Any:
@@ -206,19 +209,19 @@ class Timestamper():
             return
         *lines, self.buffer = self.buffer.split("\n")
         if not self.log_path:
-            if self.updated:
+            if self.prev_out:
                 self.stdout.write("\n")
-                self.updated = False
+                self.prev_out = ""
             for line in lines:
                 self.stdout.write(line + "\n")
                 self.flush()
             return
         try:
             with open(self.log_path, "a") as f:
-                if self.updated:
+                if self.prev_out:
                     self.stdout.write("\n")
                     f.write("\n" + self.format_timestamp(format=self.format) + "\n")
-                    self.updated = False
+                    self.prev_out = ""
                 for line in lines:
                     self.stdout.write(line + "\n")
                     f.write(self.ANSI_ESCAPE.sub("", line + "\n"))
@@ -232,16 +235,21 @@ class Timestamper():
             self.write(line)
     
     def update(self, timestamp: _datetime.datetime | str | None = None, rainbow: bool = True) -> None:
-        if not self.updated:
+        if not self.prev_out:
             self.stdout.write("\n")
         out = timestamp if isinstance(timestamp, str) else self.format_timestamp(timestamp, self.format)
         out = out       if not rainbow                else self.rainbow.paint_delimited(out)
-        self.stdout.write("\r" + out)
+        if (prev_rows := sum(
+            max(1, _math.ceil(len(part) / _shutil.get_terminal_size().columns))
+            for part in self.ANSI_ESCAPE.sub("", self.prev_out).split("\n")
+        )) > 1:
+            self.stdout.write(f"\x1b[{prev_rows - 1}A")
+        self.stdout.write("\r" + "\x1b[J" + out)
         self.flush()
-        self.updated = True
+        self.prev_out = out
     
     def restore(self) -> None:
-        _sys.stdout = self.stdout
         if not self.cursor:
-            _sys.stdout.write("\x1b[?25h")
-            _sys.stdout.flush()
+            self.stdout.write("\x1b[?25h")
+            self.stdout.flush()
+        _sys.stdout = self.stdout
