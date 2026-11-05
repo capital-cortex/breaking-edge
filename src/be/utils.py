@@ -59,6 +59,7 @@ def interval_to_dateoffset(interval: str) -> pd.DateOffset:
         case "d" : return pd.DateOffset(days    = value)
         case "w" : return pd.DateOffset(weeks   = value)
         case "mo": return pd.DateOffset(months  = value)
+        case "y" : return pd.DateOffset(years   = value)
         case  _  : raise ValueError(f"Unsupported interval: {interval}")
 
 def get_sorted_intervals(intervals: list[str], reverse: bool = False) -> list[str]:
