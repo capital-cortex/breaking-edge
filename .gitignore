@@ -14,6 +14,7 @@
 !src/be/difference_eqn.py
 !src/be/dollar_bar_features.py
 !src/be/hyperliquid.py
+!src/be/input.py
 !src/be/optimal_strategy.c
 !src/be/py.typed
 !src/be/strategy.py
