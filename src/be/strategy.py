@@ -7,12 +7,12 @@ from matplotlib.collections import LineCollection
 from typing import Callable, Literal, Any, cast
 
 try:
-    from numba import njit
+    from numba import njit       # type: ignore
 except ImportError:
-    def njit(*args, **kwargs): # type: ignore
+    def njit(func=None, *args, **kwargs): # type: ignore
         if func is not callable: # type: ignore
-            return lambda f: f # type: ignore
-        return func # type: ignore
+            return lambda f: f   # type: ignore
+        return func              # type: ignore
 
 from . import utils
 
