@@ -13,7 +13,7 @@ from typing import Callable, Literal, Any
 try:
     import duckdb      # type: ignore
     HAS_DUCKDB = True
-except:
+except ImportError:
     HAS_DUCKDB = False # type: ignore
 
 import sys
