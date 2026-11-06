@@ -471,8 +471,8 @@ class HyperliquidFillsLogger(HyperliquidLogger):
         aggrules["closedPnl"] = "sum"
         aggrules["fee"      ] = "sum"
         df_agg = groups.agg(aggrules)
-        for _, group in groups:
-            df_agg.loc[group.time, "px"] = (group.px * group.sz).sum() / group.sz.sum()
+        px_sz_sum = (self.df["px"] * self.df["sz"]).groupby(self.df["time"]).sum()
+        df_agg["px"] = px_sz_sum / df_agg["sz"]
         float_columns = df_agg.columns[df_agg.dtypes == float]
         df_agg[float_columns] = df_agg[float_columns].round(round_decimals)
         time_factor  = get_time_factor(df_agg.index[-1]) if len(df_agg) else 1.0
