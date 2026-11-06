@@ -214,10 +214,10 @@ class DataBinanceVision:
         os.remove(old_path)
     
     def download_data(
-            self                                  ,
-            symbols: list[str] | str | None = None,
-            migrate: bool                   = True,
-            delay  : float                  = 0.5 ,
+            self                                        ,
+            symbols: list[str] | str | None = None      ,
+            migrate: bool                   = HAS_DUCKDB,
+            delay  : float                  = 0.5       ,
     ) -> list[bool]:
         symbols = symbols if symbols is not None else self.get_symbols()
         symbols = symbols if isinstance(symbols, list) else [symbols]
