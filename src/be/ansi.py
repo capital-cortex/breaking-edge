@@ -18,7 +18,7 @@ class Rainbow():
     LIGHT_MAGENTA = (0xFF, 0x7F, 0xFF)
     WHITE         = (0xFF, 0xFF, 0xFF)
     
-    RGB_F = "\x1b[38;2;{r};{g};{b}m{text}\x1b[0m"
+    RGB_F = "\x1b[38;2;{r};{g};{b}m{text}\x1b[39m"
     
     def __init__(
             self,
