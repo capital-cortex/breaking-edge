@@ -395,15 +395,15 @@ class DataBinanceVision:
         df["volume_quote_sell"] = df.volume_quote_abs - df.volume_quote_buy
         return df[columns]
     
-    def get_data(self, symbol: str, source: Literal["csv", "db"] = "db", errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
+    def get_data(self, symbol: str, fromdb: bool = True, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
         match self.data_type:
             case "bookDepth" : raise NotImplementedError()
-            case "klines"    : return self.get_data_klines(symbol, source, errors)
+            case "klines"    : return self.get_data_klines(symbol, fromdb, errors)
             case "trades"    : return self.get_data_trades(symbol,         errors)
             case _           : raise ValueError(f"Invalid 'data_type': Must be one of 'trades', 'klines', 'bookDepth'. Got: '{self.data_type}'.")
     
     def get_data_trades(self, symbol: str, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
-        # TODO: source == "db": NotImplemented
+        # TODO: fromdb == True: NotImplemented
         try:
             df = self._read_csv(symbol)
             assert df.index.is_monotonic_increasing  , "Timestamps are not monotonic increasing."
@@ -414,9 +414,8 @@ class DataBinanceVision:
                 case "empty": return pd.DataFrame()
         return self.trades_clean_columns(df)
     
-    def get_data_klines(self, symbol: str, source: Literal["csv", "db"] = "db", errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
-        assert source in ["csv", "db"], f"Invalid arg: 'source' must be one of 'csv', 'db'. Got: '{source}'."
-        if source == "db" and self.period != "live":
+    def get_data_klines(self, symbol: str, fromdb: bool = True, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
+        if fromdb and self.period != "live":
             df = self._read_db(symbol)
             if not (np.diff(utils.get_bar_seconds(df)) == 0.0).all():
                 tqdm.write(f"Index for symbol '{symbol}' from '{self.timestamp_bgn}' to '{self.timestamp_end}' is not evenly spaced.")
@@ -437,8 +436,8 @@ class DataBinanceVision:
                 case "empty": return pd.DataFrame()
         return self.klines_clean_columns(df)
     
-    def get_data_klines_agg(self, symbol: str, interval: str, source: Literal["csv", "db"] = "db", errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
-        df = self.get_data_klines(symbol, source, errors=errors)
+    def get_data_klines_agg(self, symbol: str, interval: str, fromdb: bool = True, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
+        df = self.get_data_klines(symbol, fromdb, errors)
         if df.empty:
             return df
         return self.klines_resample(df, interval)
@@ -562,7 +561,7 @@ class DataBinanceVision:
             try:
                 self.timestamp_bgn = timestamp_bgn
                 self.timestamp_end = timestamp_end
-                df = self.get_data_klines(symbol, source="csv", errors="empty")
+                df = self.get_data_klines(symbol, fromdb=False, errors="empty")
                 self.timestamp_bgn = timestamp_bgn_tmp
                 self.timestamp_end = timestamp_end_tmp
             except:
