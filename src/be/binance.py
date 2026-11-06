@@ -1,7 +1,6 @@
 #%%
 import os
 import time
-import duckdb
 import requests
 import numpy as np
 import pandas as pd
@@ -10,6 +9,12 @@ from zipfile import ZipFile
 from dotenv import load_dotenv, set_key
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from typing import Callable, Literal, Any
+
+try:
+    import duckdb      # type: ignore
+    HAS_DUCKDB = True
+except:
+    HAS_DUCKDB = False # type: ignore
 
 import sys
 if "" in sys.path:
@@ -351,7 +356,8 @@ class DataBinanceVision:
         df.index = pd.to_datetime(df.time, unit="s")
         return df
     
-    def connect_db(self, mode: Literal["r", "w"] = "r", retry_seconds: int | float = 1) -> duckdb.DuckDBPyConnection:
+    def connect_db(self, mode: Literal["r", "w"] = "r", retry_seconds: int | float = 1):
+        import duckdb
         first_try = True
         while True:
             try:
@@ -395,7 +401,7 @@ class DataBinanceVision:
         df["volume_quote_sell"] = df.volume_quote_abs - df.volume_quote_buy
         return df[columns]
     
-    def get_data(self, symbol: str, fromdb: bool = True, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
+    def get_data(self, symbol: str, fromdb: bool = HAS_DUCKDB, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
         match self.data_type:
             case "bookDepth" : raise NotImplementedError()
             case "klines"    : return self.get_data_klines(symbol, fromdb, errors)
@@ -414,7 +420,7 @@ class DataBinanceVision:
                 case "empty": return pd.DataFrame()
         return self.trades_clean_columns(df)
     
-    def get_data_klines(self, symbol: str, fromdb: bool = True, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
+    def get_data_klines(self, symbol: str, fromdb: bool = HAS_DUCKDB, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
         if fromdb and self.period != "live":
             df = self._read_db(symbol)
             if not (np.diff(utils.get_bar_seconds(df)) == 0.0).all():
@@ -436,7 +442,7 @@ class DataBinanceVision:
                 case "empty": return pd.DataFrame()
         return self.klines_clean_columns(df)
     
-    def get_data_klines_agg(self, symbol: str, interval: str, fromdb: bool = True, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
+    def get_data_klines_agg(self, symbol: str, interval: str, fromdb: bool = HAS_DUCKDB, errors: Literal["raise", "empty"] = "raise") -> pd.DataFrame:
         df = self.get_data_klines(symbol, fromdb, errors)
         if df.empty:
             return df
