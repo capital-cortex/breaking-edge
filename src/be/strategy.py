@@ -1,14 +1,21 @@
 # %%
 import numpy as np
 import pandas as pd
-from numba import njit
 import matplotlib.dates as mdates
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
+from typing import Callable, Literal, Any, cast
+
+try:
+    from numba import njit
+except ImportError:
+    def njit(*args, **kwargs): # type: ignore
+        if func is not callable: # type: ignore
+            return lambda f: f # type: ignore
+        return func # type: ignore
 
 from . import utils
 
-from typing import Callable, Literal, Any, cast
 
 #%%
 def optimal_strategy(
@@ -263,7 +270,7 @@ def robust_score(func: Callable[[pd.Series], float], equities: pd.DataFrame, pen
     score_std = scores.std(ddof=0)
     return score_median - penalty * score_std
 
-@njit(cache=True, boundscheck=False)
+@njit(cache=True, boundscheck=False) # type: ignore
 def _evaluate_strategy_core(
         closes          : np.ndarray[tuple[int], np.dtype[np.float64]],
         highs           : np.ndarray[tuple[int], np.dtype[np.float64]],
