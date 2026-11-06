@@ -163,21 +163,28 @@ elif _sys.platform == "linux":
     PlatformTime = LinuxTime
 
 class Timestamper():
-    ANSI_ESCAPE = _re.compile(r'\x1b\[[0-9;]*[mGKH]')
+    """An in-line multi-line timestamp/status and logging class."""
+    ANSI_ESCAPE           = _re.compile(r'\x1b\[[0-9;]*[mGKH]')
+    RESIZE_SETTLE_SECONDS = 0.3
     
     def __init__(
             self                               ,
             format   : str        = "%F %T.%3f",
             cursor   : bool       = False      ,
+            reflow   : bool       = True       ,
             log_path : str | None = None       ,
     ) -> None:
-        self.stdout   = _sys.stdout
-        self.prev_out = ""
-        self.buffer   = ""
-        self.rainbow  = Rainbow()
-        self.format   = format
-        self.cursor   = cursor
-        self.log_path = log_path
+        self.stdout        = _sys.stdout
+        self.prev_out      = ""
+        self.prev_out_cols = 0
+        self.last_size     = (0, 0)
+        self.last_resized  = -_math.inf
+        self.buffer        = ""
+        self.rainbow       = Rainbow()
+        self.format        = format
+        self.cursor        = cursor
+        self.reflow        = reflow
+        self.log_path      = log_path
         if not cursor:
             self.stdout.write("\x1b[?25l")
             self.stdout.flush()
@@ -185,6 +192,13 @@ class Timestamper():
     
     def __getattr__(self, name: str) -> _typing.Any:
         return getattr(self.stdout, name)
+    
+    @staticmethod
+    def count_rows(text: str, cols: int) -> int:
+        return sum(
+            max(1, _math.ceil(len(part) / cols))
+            for part in Timestamper.ANSI_ESCAPE.sub("", text).split("\n")
+        )
     
     @staticmethod
     def format_timestamp(
@@ -198,6 +212,37 @@ class Timestamper():
             string  = format
         )
         return f"{timestamp:{format}}"
+    
+    def get_terminal_size(self) -> tuple[int, int]:
+        try:
+            size = _os.get_terminal_size(self.stdout.fileno())
+        except (AttributeError, OSError, ValueError):
+            size = _shutil.get_terminal_size()
+        return max(1, size.columns), max(1, size.lines)
+    
+    def update(self, timestamp: _datetime.datetime | str | None = None, rainbow: bool = True) -> None:
+        now = _time.monotonic()
+        new_line  = "" if self.prev_out else "\n"
+        cols, rows = self.get_terminal_size()
+        if self.prev_out and (cols, rows) != self.last_size:
+            self.last_size = (cols, rows)
+            self.last_resized = now
+            return
+        self.last_size = (cols, rows)
+        if self.prev_out and now - self.last_resized < self.RESIZE_SETTLE_SECONDS:
+            return
+        cursor_up = ""
+        if self.prev_out:
+            prev_cols = cols if self.reflow else self.prev_out_cols
+            if (prev_rows := self.count_rows(self.prev_out, prev_cols)) > 1:
+                cursor_up = f"\x1b[{prev_rows - 1}A"
+        out = timestamp if isinstance(timestamp, str) else self.format_timestamp(timestamp, self.format)
+        out = out       if not rainbow                else self.rainbow.paint_delimited(out)
+        out = "\n".join(line + "\x1b[K" for line in out.split("\n"))
+        self.stdout.write(new_line + cursor_up + "\r" + out + "\x1b[J")
+        self.flush()
+        self.prev_out      = out
+        self.prev_out_cols = cols
     
     def flush(self) -> None:
         self.stdout.flush()
@@ -232,20 +277,6 @@ class Timestamper():
     def writelines(self, lines: list[str]) -> None:
         for line in lines:
             self.write(line)
-    
-    def update(self, timestamp: _datetime.datetime | str | None = None, rainbow: bool = True) -> None:
-        if not self.prev_out:
-            self.stdout.write("\n")
-        out = timestamp if isinstance(timestamp, str) else self.format_timestamp(timestamp, self.format)
-        out = out       if not rainbow                else self.rainbow.paint_delimited(out)
-        if (prev_rows := sum(
-            max(1, _math.ceil(len(part) / _shutil.get_terminal_size().columns))
-            for part in self.ANSI_ESCAPE.sub("", self.prev_out).split("\n")
-        )) > 1:
-            self.stdout.write(f"\x1b[{prev_rows - 1}A")
-        self.stdout.write("\r" + "\x1b[J" + out)
-        self.flush()
-        self.prev_out = out
     
     def restore(self) -> None:
         if not self.cursor:
