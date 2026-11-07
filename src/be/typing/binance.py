@@ -4,6 +4,6 @@ from dataclasses import dataclass
 class KlinerArgs():
     interval_symbols : dict[str, list[str]]
     history_seconds  : float
-    timer_seconds    : float
+    timer_seconds    : float      = 60.0
     heartbeat_url    : str | None = None
     log_path         : str | None = None
