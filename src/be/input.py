@@ -147,7 +147,7 @@ class KeyReader:
 
     def __exit__(
         self,
-        exc_type: type[BaseException]  | None,
+        exc_type : type[BaseException] | None,
         exc_value: BaseException       | None,
         traceback: types.TracebackType | None,
     ) -> None:
@@ -157,7 +157,7 @@ class KeyReader:
         if self._active:
             return
         if sys.stdin is None or not sys.stdin.isatty():
-            raise RuntimeError("KeyReader needs an interactive terminal on stdin")
+            print("KeyReader() needs an interactive terminal on stdin")
         if not os.name == "nt":
             self._fd = sys.stdin.fileno()
             self._old_attrs = termios.tcgetattr(self._fd)
