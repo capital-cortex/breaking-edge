@@ -429,10 +429,10 @@ class HyperliquidLogger(ABC):
     path    : str | None
     df      : pd.DataFrame
     
-    def __init__(self, log_path: str | None = None) -> None:
-        self.path = log_path
+    def __init__(self, csv_path: str | None = None) -> None:
+        self.path = csv_path
         self.create(overwrite=False)
-        self.df   = pd.read_csv(log_path) if log_path else pd.DataFrame(columns=self.COLUMNS)
+        self.df   = pd.read_csv(csv_path) if csv_path else pd.DataFrame(columns=self.COLUMNS)
     
     def write(self, new_df: pd.DataFrame, header: bool = False) -> None:
         if not self.path:
