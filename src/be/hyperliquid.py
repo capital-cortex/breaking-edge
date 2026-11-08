@@ -467,6 +467,12 @@ class HyperliquidLogger(ABC):
     
     def get_last_time(self) -> int:
         return int(self.df.iloc[-1].time) if len(self.df) else -1
+    
+    def get_df(self) -> pd.DataFrame:
+        df = self.df.copy()
+        time_factor = get_time_factor(df.iloc[-1].time) if len(df) else 1.0
+        df.index    = pd.to_datetime(df.time * time_factor, unit="s")
+        return df
 
 class HyperliquidFillsLogger(HyperliquidLogger):
     COLUMNS = [*Fill.__annotations__]
@@ -517,9 +523,3 @@ class HyperliquidFundingsLogger(HyperliquidLogger):
         sys.stdout.write(f"Total fundings: {Rainbow.paint_value(f"{fundings_sum:.2f}")}$\n")
         self.write(new_df)
         return fundings_cnt
-    
-    def get_df(self) -> pd.DataFrame:
-        df = self.df.copy()
-        time_factor = get_time_factor(df.iloc[-1].time) if len(df) else 1.0
-        df.index    = pd.to_datetime(df.time * time_factor, unit="s")
-        return df
