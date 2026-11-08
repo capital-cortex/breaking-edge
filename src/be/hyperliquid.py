@@ -311,7 +311,7 @@ class HyperliquidApiHelper():
             print(f"Failed to get open position size usd{f" for '{coin}'" if coin is not None else ""}:")
             print(e)
             return None
-        return float(size_usd)
+        return float(size_usd) # cast 0 of empty sum to float
     
     def get_unrealized_pnl(self, coin: str | None = None) -> float | None:
         open_positions = self.get_open_positions(coin)
@@ -390,39 +390,49 @@ class HyperliquidApiHelper():
             print(e)
             return None
     
-    def get_funding_df(
+    def get_fundings_df(
             self                           ,
             coin          : str            ,
             timestamp_bgn : str            ,
             timestamp_end : str = "2170-01",
-    ) -> pd.DataFrame:
-        funding_hist: list[Funding] = []
+    ) -> pd.DataFrame | None:
+        fundings_hist: list[Funding] = []
         t     =     pd.to_datetime(timestamp_bgn).timestamp()
         t_end = min(pd.to_datetime(timestamp_end).timestamp(), pd.Timestamp.now("utc").timestamp())
         t     = int(t     / self.time_factor)
         t_end = int(t_end / self.time_factor)
-        while True:
-            rows = self.info_funding_history(coin, t, t_end)
-            if not len(rows):
-                break
-            t = rows[-1]["time"] + 1
-            if t >= t_end:
-                break
-            funding_hist.extend(rows)
-        df = pd.DataFrame(funding_hist, columns=list(Funding.__annotations__.keys()))
-        df.index = pd.to_datetime(df.time * self.time_factor, unit="s")
-        df = df.drop(columns=["time", "coin"]).astype(float)
+        try:
+            while True:
+                rows = self.info_funding_history(coin, t, t_end)
+                if not len(rows):
+                    break
+                t = rows[-1]["time"] + 1
+                if t >= t_end:
+                    break
+                fundings_hist.extend(rows)
+            df = pd.DataFrame(fundings_hist, columns=list(Funding.__annotations__.keys()))
+            df.index = pd.to_datetime(df.time * self.time_factor, unit="s")
+            df = df.drop(columns=["time", "coin"]).astype(float)
+        except Exception as e:
+            print("Failed to get fundings df:")
+            print(e)
+            return None
         return df
     
-    def get_portfolio_df(self, portfolio_type: PortfolioType) -> pd.DataFrame:
+    def get_portfolio_df(self, portfolio_type: PortfolioType) -> pd.DataFrame | None:
         assert portfolio_type in (types := get_args(PortfolioType.__value__)), f"Portfolio type must be one of: {types}"
-        portfolios = self.info_portfolio(self.address)
-        history = next(p for p in portfolios if p[0] == portfolio_type)[1]
-        val_df = pd.DataFrame(history["accountValueHistory"], columns=["time", "accountValueHistory"])
-        pnl_df = pd.DataFrame(history["pnlHistory"         ], columns=["time", "pnlHistory"         ])
-        df = val_df.merge(pnl_df, on="time")
-        df.index = pd.to_datetime(df.time * self.time_factor, unit="s")
-        df = df.drop(columns="time").astype(float)
+        try:
+            portfolios = self.info_portfolio(self.address)
+            history = next(p for p in portfolios if p[0] == portfolio_type)[1]
+            val_df = pd.DataFrame(history["accountValueHistory"], columns=["time", "accountValueHistory"])
+            pnl_df = pd.DataFrame(history["pnlHistory"         ], columns=["time", "pnlHistory"         ])
+            df = val_df.merge(pnl_df, on="time")
+            df.index = pd.to_datetime(df.time * self.time_factor, unit="s")
+            df = df.drop(columns="time").astype(float)
+        except Exception as e:
+            print("Failed to get portfolio df:")
+            print(e)
+            return None
         return df
 
 class HyperliquidLogger(ABC):
