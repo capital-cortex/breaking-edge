@@ -301,6 +301,17 @@ class HyperliquidApiHelper():
             return None
         return int(np.sign(size))
     
+    def get_open_position_size_usd(self, coin: str | None = None) -> float | None:
+        open_positions = self.get_open_positions(coin)
+        try:
+            assert open_positions is not None, "open positions is None."
+            size_usd = sum(float(p["position"]["szi"]) * float(p["position"]["entryPx"]) for p in open_positions)
+        except Exception as e:
+            print(f"Failed to get open position size usd{f" for '{coin}'" if coin is not None else ""}:")
+            print(e)
+            return None
+        return float(size_usd)
+    
     def get_unrealized_pnl(self, coin: str | None = None) -> float | None:
         open_positions = self.get_open_positions(coin)
         try:
