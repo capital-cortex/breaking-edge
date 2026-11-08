@@ -131,7 +131,8 @@ class HyperliquidApiHelper():
             assert isinstance(status, dict) and "filled" in status
             price = float(status["filled"]["avgPx"])
         except Exception as e:
-            print(f"Failed to get filled avg price from order result: {order_result}")
+            print("Failed to get filled avg price from order result:")
+            print(order_result)
             print(e)
             return None
         return price
