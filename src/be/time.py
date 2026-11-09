@@ -164,7 +164,7 @@ elif _sys.platform == "linux":
 
 class Timestamper():
     """An in-line multi-line timestamp/status and logging class."""
-    ANSI_ESCAPE           = _re.compile(r'\x1b\[[0-9;]*[mGKH]')
+    ANSI_ESCAPE           = _re.compile(r"\x1b\[[0-9;]*[mGKH]")
     RESIZE_SETTLE_SECONDS = 0.3
     
     def __init__(
@@ -261,10 +261,10 @@ class Timestamper():
                 self.flush()
             return
         try:
-            with open(self.log_path, "a") as f:
+            with open(self.log_path, "a", encoding="utf-8") as f:
                 if self.prev_out:
                     self.stdout.write("\n")
-                    f.write("\n" + self.format_timestamp(format=self.format) + "\n")
+                    f.write(self.ANSI_ESCAPE.sub("", "\n" + self.prev_out + "\n"))
                     self.prev_out = ""
                 for line in lines:
                     self.stdout.write(line + "\n")
