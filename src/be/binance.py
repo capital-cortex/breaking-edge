@@ -1126,10 +1126,10 @@ class BinanceApiHelper():
 #%% Kliner
 # TODO: use official binance-connector?
 class Kliner():
-    timestamper       : Timestamper
     platform_time     : PlatformTimeProtocol
     dbv               : DataBinanceVision
     bah               : BinanceApiHelper
+    timestamper       : Timestamper
     data_path_f       : str
     interval_symbols  : dict[str, list[str]]
     intervals         : list[str]
@@ -1140,11 +1140,11 @@ class Kliner():
     args              : KlinerArgs
     
     def __init__(self, args: KlinerArgs) -> None:
-        self.timestamper   = Timestamper(log_path=args.log_path)
+        self.timestamper = Timestamper(log_path=args.log_path)
         self.timestamper.update()
-        self.platform_time = PlatformTime()
         self.dbv = DataBinanceVision(period="live", interval="")
         self.bah = BinanceApiHelper()
+        self.platform_time = PlatformTime()
         self.data_path_f = os.path.join(self.dbv.get_dir("{symbol}"), "{interval}", DataBinanceVision.KLINES_LIVE_FILENAME_F)
         self.interval_symbols = {itvl: args.interval_symbols[itvl] for itvl in utils.get_sorted_intervals([*args.interval_symbols.keys()])}
         self.intervals = utils.get_sorted_intervals(list(self.interval_symbols.keys()))
