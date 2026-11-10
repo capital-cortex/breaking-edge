@@ -159,16 +159,19 @@ class KeyReader:
         if sys.stdin is None or not sys.stdin.isatty():
             print("KeyReader() needs an interactive terminal on stdin")
         if not os.name == "nt":
-            self._fd = sys.stdin.fileno()
-            self._old_attrs = termios.tcgetattr(self._fd)
-            attrs = termios.tcgetattr(self._fd)
-            # cbreak: no line buffering, no echo, but Ctrl+C etc. still work
-            attrs[3] &= ~(termios.ICANON | termios.ECHO)
-            attrs[6][termios.VMIN] = 1
-            attrs[6][termios.VTIME] = 0
-            termios.tcsetattr(self._fd, termios.TCSADRAIN, attrs)
-            self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
-            self._buf = ""
+            try:
+                self._fd = sys.stdin.fileno() # type: ignore
+                self._old_attrs = termios.tcgetattr(self._fd)
+                attrs = termios.tcgetattr(self._fd)
+                # cbreak: no line buffering, no echo, but Ctrl+C etc. still work
+                attrs[3] &= ~(termios.ICANON | termios.ECHO)
+                attrs[6][termios.VMIN] = 1
+                attrs[6][termios.VTIME] = 0
+                termios.tcsetattr(self._fd, termios.TCSADRAIN, attrs)
+                self._decoder = codecs.getincrementaldecoder("utf-8")("replace")
+                self._buf = ""
+            except Exception as e:
+                print(e)
         self._active = True
         atexit.register(self.stop)  # restore the terminal even on a crash
 
@@ -187,7 +190,7 @@ class KeyReader:
     def read_key(self) -> str | None:
         """Return the next key as a string, or None if no key is waiting."""
         if not self._active:
-            raise RuntimeError("KeyReader is not started; use 'with KeyReader():'")
+            raise RuntimeError("KeyReader() is not started; use 'with KeyReader():'")
         if os.name == "nt":
             if not msvcrt.kbhit():
                 return None
@@ -207,7 +210,7 @@ class KeyReader:
                 data = os.read(self._fd, 4096)
                 if not data:  # EOF
                     break
-                self._buf += self._decoder.decode(data)
+                self._buf += self._decoder.decode(data) if self._decoder else ""
                 self._last_rx = time.monotonic()
             buf = self._buf
             if not buf:
