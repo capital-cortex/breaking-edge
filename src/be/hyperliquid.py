@@ -301,7 +301,7 @@ class HyperliquidApiHelper():
             print(e)
             return None
         return int(np.sign(size))
-    
+    """
     def get_open_position_size_usd(self, coin: str | None = None) -> float | None:
         open_positions = self.get_open_positions(coin)
         try:
@@ -312,7 +312,7 @@ class HyperliquidApiHelper():
             print(e)
             return None
         return float(size_usd) # cast 0 of empty sum to float
-    
+    """
     def get_unrealized_pnl(self, coin: str | None = None) -> float | None:
         open_positions = self.get_open_positions(coin)
         try:
@@ -477,18 +477,20 @@ class HyperliquidLogger(ABC):
 class HyperliquidFillsLogger(HyperliquidLogger):
     COLUMNS = [*Fill.__annotations__]
     
-    def update(self, new_fills: list[Fill]) -> int:
+    def update(self, new_fills: list[Fill], verbose: int = 1) -> int:
         fills_cnt = len(new_fills)
         if fills_cnt == 0:
             return fills_cnt
-        print("Logging new user fills:")
-        print(self.dump(new_fills))
+        if verbose:
+            print("Logging new user fills:")
+            print(self.dump(new_fills) if verbose > 1 else f"[... ({fills_cnt}) ...]")
         new_df  = pd.DataFrame(new_fills).apply(self.to_numeric)
         self.df = pd.concat([self.df, new_df], ignore_index=True)
         cpnl_sum = new_df.closedPnl.sum()
         fees_sum = new_df.fee.sum()
-        sys.stdout.write(f"Total closed-PnL: {Rainbow.paint_value(f"{ cpnl_sum:.2f}")}$, ")
-        sys.stdout.write(            f"fees: {Rainbow.paint_value(f"{-fees_sum:.2f}")}$\n")
+        if verbose:
+            sys.stdout.write(f"Total closed-PnL: {Rainbow.paint_value(f"{ cpnl_sum:.2f}")}$, ")
+            sys.stdout.write(            f"fees: {Rainbow.paint_value(f"{-fees_sum:.2f}")}$\n")
         self.write(new_df)
         return fills_cnt
     
@@ -510,16 +512,18 @@ class HyperliquidFillsLogger(HyperliquidLogger):
 class HyperliquidFundingsLogger(HyperliquidLogger):
     COLUMNS = [*[*UserFunding.__annotations__][:-1], *Delta.__annotations__]
     
-    def update(self, new_fundings: list[UserFunding], verbose : bool = False) -> int:
+    def update(self, new_fundings: list[UserFunding], verbose: int = 1) -> int:
         fundings_cnt = len(new_fundings)
         if fundings_cnt == 0:
             return fundings_cnt
-        print("Logging new user fundings:")
-        print(self.dump(new_fundings) if verbose else f"[... ({fundings_cnt}) ...]")
+        if verbose:
+            print("Logging new user fundings:")
+            print(self.dump(new_fundings) if verbose > 1 else f"[... ({fundings_cnt}) ...]")
         new_df  = pd.json_normalize(new_fundings).apply(self.to_numeric) # type: ignore
         new_df.columns = self.COLUMNS
         self.df = pd.concat([self.df, new_df], ignore_index=True)
         fundings_sum = new_df.usdc.sum()
-        sys.stdout.write(f"Total fundings: {Rainbow.paint_value(f"{fundings_sum:.2f}")}$\n")
+        if verbose:
+            sys.stdout.write(f"Total fundings: {Rainbow.paint_value(f"{fundings_sum:.2f}")}$\n")
         self.write(new_df)
         return fundings_cnt
