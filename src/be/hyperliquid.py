@@ -323,7 +323,27 @@ class HyperliquidApiHelper():
             print(e)
             return None
         return float(unrealized_pnl) # cast 0 of empty sum to float
+    
+    def get_cross_maintenance_margin_used(self) -> float | None:
+        try:
+            assert self.user_state is not None, "user state is None."
+            return float(self.user_state["crossMaintenanceMarginUsed"])
+        except Exception as e:
+            print(f"Failed to get cross maintenance margin used:")
+            print(e)
+            return None
     """
+    def get_margin_used(self, coin: str | None = None) -> float | None:
+        open_positions = self.get_open_positions(coin)
+        try:
+            assert open_positions is not None, "open positions is None."
+            margin_used = sum(float(p["position"]["marginUsed"]) for p in open_positions)
+        except Exception as e:
+            print(f"Failed to get maintenance margin{f" for '{coin}'" if coin is not None else ""}:")
+            print(e)
+            return None
+        return float(margin_used)
+    
     def get_open_position_cnt(self, coin: str) -> int | None:
         open_positions = self.get_open_positions(coin)
         if open_positions is None:
