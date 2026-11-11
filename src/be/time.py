@@ -179,7 +179,6 @@ class Timestamper():
         self.prev_out_cols = 0
         self.last_size     = (0, 0)
         self.last_resized  = -_math.inf
-        self.buffer        = ""
         self.rainbow       = Rainbow()
         self.format        = format
         self.cursor        = cursor
@@ -248,31 +247,16 @@ class Timestamper():
         self.stdout.flush()
     
     def write(self, text: str) -> None:
-        self.buffer += text
-        if not "\n" in self.buffer:
-            return
-        *lines, self.buffer = self.buffer.split("\n")
-        if not self.log_path:
-            if self.prev_out:
-                self.stdout.write("\n")
-                self.prev_out = ""
-            for line in lines:
-                self.stdout.write(line + "\n")
-                self.flush()
-            return
-        try:
-            with open(self.log_path, "a", encoding="utf-8") as f:
-                if self.prev_out:
-                    self.stdout.write("\n")
-                    f.write(self.ANSI_ESCAPE.sub("", "\n" + self.prev_out + "\n"))
-                    self.prev_out = ""
-                for line in lines:
-                    self.stdout.write(line + "\n")
-                    f.write(self.ANSI_ESCAPE.sub("", line + "\n"))
-                    self.flush()
-        except Exception as e:
-            print(f"Failed to log the print to '{self.log_path}':")
-            print(e)
+        stdout_write = ""
+        file_write   = ""
+        if self.prev_out:
+            stdout_write  = "\n"
+            file_write    = self.ANSI_ESCAPE.sub("", "\n" + self.prev_out + "\n")
+            self.prev_out = ""
+        self.stdout.write(stdout_write + text)
+        if self.log_path:
+            with open(self.log_path, "a", encoding="utf-8") as file:
+                file.write(file_write + self.ANSI_ESCAPE.sub("", text))
     
     def writelines(self, lines: list[str]) -> None:
         for line in lines:
