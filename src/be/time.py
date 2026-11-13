@@ -10,8 +10,6 @@ import typing as _typing
 
 from .ansi import Rainbow
 
-# TODO: use tenacity (in all places where attempts are made)
-
 __all__ = ["PlatformTime", "PlatformTimeProtocol", "Timestamper"]
 
 class PlatformTimeProtocol(_typing.Protocol):

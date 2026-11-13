@@ -101,15 +101,6 @@ class DataBinanceVision:
     klinesrdy_path_f  : str
     datardy_prev_mtime: float
     
-    # TODO: unevenly spaced index is ok for interval == "mo"
-    # TODO: input validation
-    # TODO: data_binance_vision.duckdb -> data.duckdb
-    # TODO: add resample_data(df, by) function
-    # TODO: rename klines_resample() -> _resample_data_by_time()
-    # TODO: rename klines_resample_volume_bars() -> _resample_data_by_volume()
-    # TODO: rename get_data_klines_agg() -> get_data_agg(symbol, by)
-    # TODO: make helper functions intern with _ (like _migrate_data_klines())
-    # TODO: add db_only mode (delete zips)? Track downloaded data? Make get_symbols() work?
     def __init__(
             self,
             market_type   : Literal["futures"  , "spot"             ] = "spot"   ,
@@ -1124,7 +1115,6 @@ class BinanceApiHelper():
             f.write(f"{line}\n")
 
 #%% Kliner
-# TODO: use official binance-connector?
 class Kliner():
     platform_time     : PlatformTimeProtocol
     dbv               : DataBinanceVision
