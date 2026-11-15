@@ -291,6 +291,17 @@ class HyperliquidApiHelper():
             return None
         return open_positions
     
+    def get_open_position_coins(self) -> list[str] | None:
+        try:
+            assert self.user_state is not None, "user state is None."
+            open_positions = self.user_state["assetPositions"]
+            coins = [p["position"]["coin"] for p in open_positions]
+        except Exception as e:
+            print(f"Failed to get open position coins:")
+            print(e)
+            return None
+        return coins
+     
     def get_open_position_side(self, coin: str | None = None) -> int | None:
         open_positions = self.get_open_positions(coin)
         try:
