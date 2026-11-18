@@ -1163,11 +1163,11 @@ class Kliner():
     def klines_update(self, symbol: str, interval: str, bar_time: float) -> bool:
         klines = self.symbol_klines[symbol]
         interval_seconds = utils.interval_to_timedelta(interval).total_seconds()
-        history_bars = int(self.args.history_seconds / interval_seconds)
+        history_bars     = int(np.ceil(self.args.history_seconds / interval_seconds))
         while True:
-            limit = int((bar_time - klines.iloc[-1].time * self.bah.time_factor) / interval_seconds - 1) if len(klines) else history_bars
+            limit      = int((bar_time - klines.iloc[-1].time * self.bah.time_factor) / interval_seconds - 1) if len(klines) else history_bars
             start_time = int((bar_time - interval_seconds * limit) / self.bah.time_factor)
-            limit = min(limit, self.bah.API_LIMIT)
+            limit      = min(limit, self.bah.API_LIMIT)
             try:
                 new_klines = self.bah.get_klines_df(symbol, interval, limit, start_time)
                 klines = pd.concat([klines, new_klines]) if len(klines) else new_klines
