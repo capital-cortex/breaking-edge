@@ -174,6 +174,7 @@ class Timestamper():
     ) -> None:
         self.stdout        = _sys.stdout
         self.prev_out      = ""
+        self.prev_out_rows = 0
         self.prev_out_cols = 0
         self.last_size     = (0, 0)
         self.last_resized  = -_math.inf
@@ -230,16 +231,16 @@ class Timestamper():
             return
         cursor_up = ""
         if self.prev_out:
-            prev_cols = cols if self.reflow else self.prev_out_cols
-            if (prev_rows := self.count_rows(self.prev_out, prev_cols)) > 1:
-                cursor_up = f"\x1b[{prev_rows - 1}A"
+            self.prev_out_cols = cols if self.reflow else self.prev_out_cols
+            self.prev_out_rows = self.count_rows(self.prev_out, self.prev_out_cols)
+            if self.prev_out_rows > 1:
+                cursor_up = f"\x1b[{self.prev_out_rows - 1}A"
         out = timestamp if isinstance(timestamp, str) else self.format_timestamp(timestamp, self.format)
         out = out       if not rainbow                else self.rainbow.paint_delimited(out)
         out = "\n".join(line + "\x1b[K" for line in out.split("\n"))
         self.stdout.write(new_line + cursor_up + "\r" + out + "\x1b[J")
         self.flush()
-        self.prev_out      = out
-        self.prev_out_cols = cols
+        self.prev_out = out
     
     def flush(self) -> None:
         self.stdout.flush()
