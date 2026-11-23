@@ -24,30 +24,34 @@ class HyperliquidApiHelper():
     DECIMALS_PERP = 6
     DECIMALS_SPOT = 8
     
-    eth_account : LocalAccount
-    address     : str
-    info        : Info
-    exchange    : Exchange
-    user_state  : UserState       | None
-    open_orders : list[OpenOrder] | None
-    time_factor : float
+    eth_account  : LocalAccount
+    agent_address: str
+    address      : str
+    info         : Info
+    exchange     : Exchange
+    user_state   : UserState       | None
+    open_orders  : list[OpenOrder] | None
+    time_factor  : float
     
     def __init__(
             self                                                        ,
-            private_key   : str                                         ,
-            agent_address : str       | None = None                     ,
-            base_url      : str              = constants.MAINNET_API_URL,
-            skip_ws       : bool             = True                     ,
-            perp_dexs     : list[str] | None = None                     ,
-            timeout       : float     | None = 30.0                     ,
+            private_key    : str                                         ,
+            account_address: str       | None = None                     ,
+            base_url       : str              = constants.MAINNET_API_URL,
+            skip_ws        : bool             = True                     ,
+            perp_dexs      : list[str] | None = None                     ,
+            timeout        : float     | None = 30.0                     ,
     ) -> None:
         self.eth_account = Account.from_key(private_key)
-        if agent_address is None:
-            self.address = self.eth_account.address
-            print(f"Running with account address.")
+        self.agent_address = self.eth_account.address
+        self.address       = account_address or self.agent_address
+        if account_address is None:
+            print("Running with account address.")
         else:
-            self.address = agent_address
             print(f"Running with agent address.")
+            if self.address == self.agent_address:
+                print("Warning: account_address equals the address derived from private_key.")
+                print("The main wallet is being used to sign instead of an API/agent wallet.")
         while True:
             try:
                 self.info        = Info(base_url, skip_ws, perp_dexs=perp_dexs, timeout=timeout)
