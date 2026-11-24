@@ -1188,11 +1188,11 @@ class Kliner():
         self.symbol_klines[symbol] = klines
         return True
     
-    def on_tick(self, delay: float = 0.1) -> None:
+    def on_tick(self, datetime: pd.Timestamp, delay: float = 0.1) -> None:
         time.sleep(delay)
         if self.platform_time.was_synced():
             self.bah.set_timestamp_offset_seconds()
-        self.timestamper.update(self.bah.get_binance_datetime())
+        self.timestamper.update(datetime)
         t = time.time()
         if t < self.on_timer_prev_time + self.args.timer_seconds:
             return
@@ -1206,7 +1206,7 @@ class Kliner():
     
     def on_bar(self, datetime: pd.Timestamp, bar_time: float) -> None:
         # update files
-        self.timestamper.update(self.bah.get_binance_datetime())
+        self.timestamper.update(datetime)
         for interval in self.intervals:
             if bar_time != datetime.floor(utils.interval_to_freq(interval)).timestamp():
                 continue
@@ -1246,4 +1246,4 @@ class Kliner():
             if bar_time != self.on_bar_prev_time:
                 self.on_bar(datetime, bar_time)
                 self.on_bar_prev_time = bar_time
-            self.on_tick()
+            self.on_tick(datetime)
