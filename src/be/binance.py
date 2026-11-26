@@ -1195,7 +1195,7 @@ class Kliner():
         datetime = self.bah.get_binance_datetime()
         self.timestamper.update(datetime)
         bar_time = datetime.floor(utils.interval_to_freq(self.intervals[0])).timestamp()
-        if bar_time != self.on_bar_prev_time:
+        if bar_time > self.on_bar_prev_time:
             self.on_bar(datetime, bar_time)
             self.on_bar_prev_time = bar_time
         t = time.time()
