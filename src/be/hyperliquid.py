@@ -142,12 +142,12 @@ class HyperliquidApiHelper():
         return price
     
     def position_market_open(
-            self,
-            coin     : str                                     ,
-            is_buy   : bool                                    ,
-            sz       : float                                   ,
-            px       : float | None = None                     ,
-            slippage : float        = Exchange.DEFAULT_SLIPPAGE,
+            self                                              ,
+            coin    : str                                     ,
+            is_buy  : bool                                    ,
+            sz      : float                                   ,
+            px      : float | None = None                     ,
+            slippage: float        = Exchange.DEFAULT_SLIPPAGE,
     ) -> OrderResult | None:
         sz = self.format_sz(sz, coin)
         if px is not None:
@@ -170,11 +170,11 @@ class HyperliquidApiHelper():
         return order_result
     
     def position_market_close(
-            self                                               ,
-            coin     : str                                     ,
-            sz       : float | None = None                     ,
-            px       : float | None = None                     ,
-            slippage : float        = Exchange.DEFAULT_SLIPPAGE,
+            self                                              ,
+            coin    : str                                     ,
+            sz      : float | None = None                     ,
+            px      : float | None = None                     ,
+            slippage: float        = Exchange.DEFAULT_SLIPPAGE,
     ) -> OrderResult | None:
         if sz is not None:
             sz = self.format_sz(sz, coin)
@@ -198,12 +198,12 @@ class HyperliquidApiHelper():
         return order_result
     
     def order_stop_sl(
-            self                                        ,
-            coin     : str                              ,
-            is_buy   : bool                             ,
-            sz       : float                            ,
-            sl_px    : float                            ,
-            slippage : float = Exchange.DEFAULT_SLIPPAGE,
+            self                                       ,
+            coin    : str                              ,
+            is_buy  : bool                             ,
+            sz      : float                            ,
+            sl_px   : float                            ,
+            slippage: float = Exchange.DEFAULT_SLIPPAGE,
     ) -> OrderResult | None:
         limit_px = ((1.0 if is_buy else -1.0) * slippage + 1.0) * sl_px
         sz       = self.format_sz(sz, coin)
@@ -228,12 +228,12 @@ class HyperliquidApiHelper():
         return stop_result
     
     def order_stop_tp(
-            self                                        ,
-            coin     : str                              ,
-            is_buy   : bool                             ,
-            sz       : float                            ,
-            tp_px    : float                            ,
-            slippage : float = Exchange.DEFAULT_SLIPPAGE,
+            self                                       ,
+            coin    : str                              ,
+            is_buy  : bool                             ,
+            sz      : float                            ,
+            tp_px   : float                            ,
+            slippage: float = Exchange.DEFAULT_SLIPPAGE,
     ) -> OrderResult | None:
         limit_px = ((1.0 if is_buy else -1.0) * slippage + 1.0) * tp_px
         sz       = self.format_sz(sz, coin)
@@ -471,9 +471,9 @@ class HyperliquidApiHelper():
         return df
 
 class HyperliquidLogger(ABC):
-    COLUMNS : list[str]
-    path    : str | None
-    df      : pd.DataFrame
+    COLUMNS: list[str]
+    path   : str | None
+    df     : pd.DataFrame
     
     def __init__(self, csv_path: str | None = None) -> None:
         self.path = csv_path
